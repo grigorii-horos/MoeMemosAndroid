@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "me.mudkip.moememos"
+        applicationId = "me.mudkip.moememos.coffer"
         minSdk = 26
         targetSdk = 37
         versionCode = 51

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MoeMemos</string>
+    <string name="app_name">MoeMemos Coffer</string>
     <string name="search">Поиск</string>
     <string name="back">Назад</string>
     <string name="memos">Memos</string>
