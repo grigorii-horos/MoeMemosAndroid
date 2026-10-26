@@ -1,3 +1,21 @@
+# Moe Memos — Coffer fork
+
+This fork (`me.mudkip.moememos.coffer`, installs beside upstream) adds a **Coffer** account: the
+notes of a [Coffer](https://github.com/grigorii-horos/coffer) instance (`notes:notes`) as memos,
+over Coffer's own REST API — no Coffer plugin.
+
+- **Log in** on "Add Memos Account" with the Coffer address and an API token. A host whose
+  `/health` answers `{"status":"ok","startedAt":…}` is taken as Coffer.
+- **One memo = one note.** The memo text is `# title`, the text, then `#tags`; on save it is split
+  back (`data/coffer/CofferCompose.kt`). A tag written mid-text moves to the end after a save.
+- **Attachments** go to `/api/upload`; images land in the note's `gallery`, other files in `files`.
+- **Delete** moves the note to Coffer's trash. Pin, archive, visibility and location are not stored.
+- A self-signed home CA must be installed on the phone as a user certificate.
+
+Branch `coffer` carries the fork; `upstream` is mudkipme/MoeMemosAndroid.
+
+---
+
 # Moe Memos
 
 [![justforfunnoreally.dev badge](https://img.shields.io/badge/justforfunnoreally-dev-9ff)](https://justforfunnoreally.dev)
