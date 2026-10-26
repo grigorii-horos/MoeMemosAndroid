@@ -3,7 +3,9 @@ package me.mudkip.moememos.ui.coffer
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
+import android.content.Intent
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -37,6 +39,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +51,7 @@ import me.mudkip.moememos.R
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.PopupProperties
 import androidx.webkit.WebViewAssetLoader
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -59,6 +63,8 @@ import kotlinx.serialization.json.put
 import me.mudkip.moememos.data.coffer.ASSET_ORIGIN
 import me.mudkip.moememos.data.coffer.CofferCompose
 import me.mudkip.moememos.data.coffer.CofferEditorProxy
+import me.mudkip.moememos.data.coffer.CofferEditorProxies
+import me.mudkip.moememos.data.coffer.isEditorPage
 import me.mudkip.moememos.data.coffer.CofferNode
 import me.mudkip.moememos.data.coffer.NoteParts
 import me.mudkip.moememos.data.local.entity.ResourceEntity
@@ -153,21 +159,27 @@ fun CofferNoteEditor(
         )
 
         val context = LocalContext.current
-        val proxy = remember(host, userState.okHttpClient) {
-            CofferEditorProxy(
-                userState.okHttpClient,
-                host,
-                proxiedPrefixes(context),
-                File(context.cacheDir, "coffer-editor"),
+        val proxy = CofferEditorProxies.forHost(host) {
+            CofferEditorProxy(userState.okHttpClient, host, proxiedPrefixes(context), File(context.cacheDir, "coffer-editor"))
+        }
+        // A dead renderer (killed for memory) is replaced by a fresh WebView instead of taking the app down.
+        var generation by remember { mutableStateOf(0) }
+        key(generation) {
+            AndroidView(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                factory = { ctx ->
+                    ready = false
+                    editorWebView(
+                        ctx,
+                        proxy,
+                        onReady = { ready = true; loadIntoEditor() },
+                        onChange = { md -> text = md; emit() },
+                        onGone = { generation++ },
+                    ).also { webView = it }
+                },
+                onRelease = { it.destroy() },
             )
         }
-        AndroidView(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            factory = { ctx ->
-                editorWebView(ctx, proxy, onReady = { ready = true; loadIntoEditor() }, onChange = { md -> text = md; emit() })
-                    .also { webView = it }
-            },
-        )
 
         TagChips(tags = tags, known = knownTags, onChange = { emit() })
 
@@ -198,6 +210,7 @@ fun CofferNoteEditor(
 @Composable
 private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: () -> Unit) {
     var draft by remember { mutableStateOf("") }
+    var dismissed by remember { mutableStateOf(false) }
     fun add(tag: String) {
         val t = tag.trim().removePrefix("#")
         if (t.isNotEmpty() && t !in tags) { tags.add(t); onChange() }
@@ -219,13 +232,19 @@ private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: (
             val suggestions = known.filter { it !in tags && draft.isNotEmpty() && it.startsWith(draft.removePrefix("#"), ignoreCase = true) }
             OutlinedTextField(
                 value = draft,
-                onValueChange = { draft = it.replace(" ", "") },
+                onValueChange = { draft = it.replace(" ", ""); dismissed = false },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { add(draft) }),
             )
-            DropdownMenu(expanded = suggestions.isNotEmpty(), onDismissRequest = {}) {
+            // Not focusable: the keyboard stays with the field, so a new tag that shares a prefix
+            // with a known one can still be typed; tapping outside hides the list.
+            DropdownMenu(
+                expanded = suggestions.isNotEmpty() && !dismissed,
+                onDismissRequest = { dismissed = true },
+                properties = PopupProperties(focusable = false),
+            ) {
                 suggestions.take(8).forEach { s -> DropdownMenuItem(text = { Text("#$s") }, onClick = { add(s) }) }
             }
         }
@@ -245,6 +264,7 @@ private fun editorWebView(
     proxy: CofferEditorProxy,
     onReady: () -> Unit,
     onChange: (String) -> Unit,
+    onGone: () -> Unit,
 ): WebView {
     val assets = WebViewAssetLoader.AssetsPathHandler(context)
     fun under(dir: String) = WebViewAssetLoader.PathHandler { path -> assets.handle("coffer-editor/$dir/$path") }
@@ -258,6 +278,19 @@ private fun editorWebView(
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         webViewClient = object : WebViewClient() {
+            // A link tapped in the note opens outside; the editor page never leaves its own origin,
+            // so no other page ever gets the note's bridge.
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (isEditorPage(request.url.toString())) return false
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
+                return true
+            }
+
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                main.post(onGone)
+                return true
+            }
+
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 loader.shouldInterceptRequest(request.url)
                     ?: proxy.handle(request.url.toString(), request.method)?.let {

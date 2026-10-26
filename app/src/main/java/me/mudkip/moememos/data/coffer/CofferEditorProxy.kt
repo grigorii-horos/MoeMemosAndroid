@@ -12,6 +12,9 @@ import java.io.InputStream
 /** The local origin the embedded editor page is served from (androidx.webkit's asset loader). */
 const val ASSET_ORIGIN = "https://appassets.androidplatform.net"
 
+/** True for the editor page's own origin — the only thing the editor WebView may navigate to. */
+fun isEditorPage(url: String): Boolean = url.startsWith("$ASSET_ORIGIN/")
+
 /** What the WebView gets back for a forwarded request. */
 data class ProxyResponse(
     val status: Int,
@@ -36,9 +39,11 @@ class CofferEditorProxy(
 ) {
     private val host = host.trimEnd('/')
 
+    private val cache = cacheDir?.let { Cache(it, CACHE_BYTES) }
+
     private val client: OkHttpClient = client.newBuilder().apply {
-        if (cacheDir != null) {
-            cache(Cache(cacheDir, CACHE_BYTES))
+        if (cache != null) {
+            cache(cache)
             // Store every answer, revalidate it while online: an offline FORCE_CACHE read then
             // finds the last copy whatever caching the server asked for.
             addNetworkInterceptor { chain ->
@@ -75,9 +80,29 @@ class CofferEditorProxy(
         body = body.byteStream(),
     )
 
+    /** Releases the disk cache; the next proxy for another host may then own the directory. */
+    fun close() {
+        cache?.close()
+    }
+
     private fun offline() = ProxyResponse(504, "text/plain", emptyMap(), "offline".byteInputStream())
 
     private companion object {
         const val CACHE_BYTES = 20L * 1024 * 1024
+    }
+}
+
+/**
+ * One proxy — hence one disk cache on its directory — for the whole process: OkHttp forbids two
+ * live caches on one directory, and every screen open used to build a new one. A different host
+ * (another account) replaces it and closes the old cache.
+ */
+object CofferEditorProxies {
+    private var current: Pair<String, CofferEditorProxy>? = null
+
+    @Synchronized
+    fun forHost(host: String, create: () -> CofferEditorProxy): CofferEditorProxy {
+        current?.let { (h, proxy) -> if (h == host) return proxy else proxy.close() }
+        return create().also { current = host to it }
     }
 }

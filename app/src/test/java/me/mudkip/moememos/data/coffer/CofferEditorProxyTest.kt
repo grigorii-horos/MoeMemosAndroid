@@ -7,7 +7,9 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
@@ -72,5 +74,26 @@ class CofferEditorProxyTest {
     fun noAnswerAtAllIsA504NotAnException() {
         val proxy = CofferEditorProxy(client { throw IOException("offline") }, "https://h", prefixes)
         assertEquals(504, proxy.handle("$ASSET_ORIGIN/api/plugins", "GET")!!.status)
+    }
+
+    @Test
+    fun oneProxyPerHostForTheWholeProcess() {
+        val made = mutableListOf<String>()
+        fun get(host: String) = CofferEditorProxies.forHost(host) {
+            made += host
+            CofferEditorProxy(client(::ok), host, prefixes)
+        }
+        val a = get("https://h")
+        assertTrue(a === get("https://h"))
+        val b = get("https://other")
+        assertTrue(a !== b)
+        assertEquals(listOf("https://h", "https://other"), made)
+    }
+
+    @Test
+    fun onlyTheEditorPagesOwnOriginStaysInTheWebView() {
+        assertTrue(isEditorPage("$ASSET_ORIGIN/embed/editor.html"))
+        assertFalse(isEditorPage("https://example.com/x"))
+        assertFalse(isEditorPage("https://appassets.androidplatform.net.evil.com/"))
     }
 }
