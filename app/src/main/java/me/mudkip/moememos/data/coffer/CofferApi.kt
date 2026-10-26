@@ -23,6 +23,9 @@ import java.time.Instant
  * strings, an empty multiple file field is `null`, `/uploads/<name>` needs the Bearer token.
  */
 object CofferNode {
+    const val NODE = "notes:notes"
+    /** The note's upload directory under `/uploads/`, `<dir>/<id>/<name>` (Coffer's record-scoped uploads). */
+    const val DIR = "notes/notes"
     const val LIST = "api/node/notes"
     const val ITEM = "api/item/notes/notes/{id}"
     const val TITLE = "title"
@@ -73,7 +76,11 @@ interface CofferApi {
 
     @Multipart
     @POST("api/upload")
-    suspend fun upload(@Part file: MultipartBody.Part): ApiResponse<CofferFile>
+    suspend fun upload(
+        @Part file: MultipartBody.Part,
+        @Query("node") node: String? = null,
+        @Query("id") id: Long? = null,
+    ): ApiResponse<CofferFile>
 
     @GET("api/auth/me")
     suspend fun me(): ApiResponse<CofferMe>

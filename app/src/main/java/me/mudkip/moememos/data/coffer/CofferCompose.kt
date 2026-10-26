@@ -23,7 +23,7 @@ object CofferCompose {
     private val HEADING = Regex("""^\s*#+\s*""")
 
     /** Alternating plain/protected runs of `md`, plain first. */
-    private fun segments(md: String): List<Pair<String, Boolean>> {
+    internal fun segments(md: String): List<Pair<String, Boolean>> {
         val out = mutableListOf<Pair<String, Boolean>>()
         var at = 0
         for (m in CODE.findAll(md)) {
@@ -57,6 +57,30 @@ object CofferCompose {
             text = lines.drop(at + 1).joinToString("\n").trim(),
             tags = tags,
         )
+    }
+
+    private val LINK = Regex("""^(!?\[[^\]\n]*]\()([^)\s]*)(.*)$""", RegexOption.DOT_MATCHES_ALL)
+
+    /** Rewrites every link/image destination outside code; [dest] returns the new one or null. */
+    private fun mapLinks(md: String, dest: (String) -> String?): String =
+        segments(md).joinToString("") { (s, protected) ->
+            val m = if (protected) LINK.matchEntire(s) else null
+            val to = m?.let { dest(it.groupValues[2]) }
+            if (m == null || to == null) s else m.groupValues[1] + to + m.groupValues[3]
+        }
+
+    /**
+     * Coffer links a file of the note by its bare name (`![](foto.jpg)`); MoeMemos needs a URL.
+     * [files] are the note's stored file paths (`notes/notes/8/foto.jpg`).
+     */
+    fun bareToUrl(md: String, files: List<String>, uploadsBase: String): String {
+        val byName = files.associateBy { it.substringAfterLast('/') }
+        return mapLinks(md) { d -> byName[d]?.let { uploadsBase + it } }
+    }
+
+    /** The inverse: a URL into this note's own directory ([recordBase]) becomes the bare name. */
+    fun urlToBare(md: String, recordBase: String): String = mapLinks(md) { d ->
+        d.removePrefix(recordBase).takeIf { d.startsWith(recordBase) && it.isNotEmpty() && '/' !in it }
     }
 
     fun join(p: NoteParts): String = listOfNotNull(

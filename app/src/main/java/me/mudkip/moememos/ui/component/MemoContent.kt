@@ -64,6 +64,7 @@ fun MemoContent(
         Markdown(
             text,
             imageBaseUrl = LocalUserState.current.host,
+            imageLoader = rememberAccountImageLoader(),
             checkboxChange = checkboxChange,
             selectable = selectable,
             onTagClick = handleTagClick

@@ -36,7 +36,7 @@ class CofferRepository(
     private fun resource(f: CofferFile, date: Instant) = Resource(
         remoteId = f.name,
         date = date,
-        filename = f.name,
+        filename = f.name.substringAfterLast('/'),
         mimeType = f.mime ?: mimeOf(f.name),
         uri = "$host/uploads/${f.name}",
     )
@@ -44,21 +44,24 @@ class CofferRepository(
     private fun memo(n: CofferNote): Memo {
         val date = n.createdAt ?: n.updatedAt ?: Instant.now()
         val tags = n.tags.orEmpty()
+        val files = n.gallery.orEmpty() + n.files.orEmpty()
+        val content = CofferCompose.join(NoteParts(n.title.orEmpty(), n.text.orEmpty(), tags))
         return Memo(
             remoteId = n.id.toString(),
-            content = CofferCompose.join(NoteParts(n.title.orEmpty(), n.text.orEmpty(), tags)),
+            content = CofferCompose.bareToUrl(content, files.map { it.name }, "$host/uploads/"),
             date = date,
             pinned = false,
             visibility = MemoVisibility.PRIVATE,
-            resources = (n.gallery.orEmpty() + n.files.orEmpty()).map { resource(it, date) },
+            resources = files.map { resource(it, date) },
             tags = tags,
             updatedAt = n.updatedAt,
         )
     }
 
     /** Only the parts that were passed: a `null` leaves those fields untouched on the server. */
-    private fun body(content: String?, resourceNames: List<String>?): JsonObject = buildJsonObject {
-        content?.let { CofferCompose.split(it) }?.let { p ->
+    private fun body(content: String?, resourceNames: List<String>?, id: Long? = null): JsonObject = buildJsonObject {
+        val own = id?.let { "$host/uploads/${CofferNode.DIR}/$it/" }
+        content?.let { CofferCompose.split(if (own == null) it else CofferCompose.urlToBare(it, own)) }?.let { p ->
             put(CofferNode.TITLE, p.title)
             put(CofferNode.TEXT, p.text)
             put(CofferNode.TAGS, JsonArray(p.tags.map(::JsonPrimitive)))
@@ -99,7 +102,9 @@ class CofferRepository(
         archived: Boolean?,
         location: MemoLocationChange?,
     ): ApiResponse<Memo> =
-        api.updateNote(remoteId.toLong(), body(content, resourceRemoteIds)).mapSuccess { memo(this) }
+        remoteId.toLong().let { id ->
+            api.updateNote(id, body(content, resourceRemoteIds, id)).mapSuccess { memo(this) }
+        }
 
     override suspend fun deleteMemo(remoteId: String): ApiResponse<Unit> = api.deleteNote(remoteId.toLong())
 
@@ -120,7 +125,9 @@ class CofferRepository(
             filename,
             InputStreamRequestBody(type, contentLength, openInputStream),
         )
-        return api.upload(part).mapSuccess { resource(this, Instant.now()) }
+        // Known note: straight into its directory; a new one goes to Coffer's inbox and is copied on save.
+        val id = memoRemoteId?.toLongOrNull()
+        return api.upload(part, id?.let { CofferNode.NODE }, id).mapSuccess { resource(this, Instant.now()) }
     }
 
     // An upload no record names is harmless; Coffer has no route to delete one.

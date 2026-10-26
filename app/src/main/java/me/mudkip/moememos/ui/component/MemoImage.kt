@@ -109,3 +109,17 @@ fun MemoImage(
         }
     )
 }
+
+/** An image loader that fetches through the current account's HTTP client (its credentials). */
+@Composable
+fun rememberAccountImageLoader(): ImageLoader {
+    val context = LocalContext.current
+    val userStateViewModel = LocalUserState.current
+    return remember(context, userStateViewModel.okHttpClient) {
+        ImageLoader.Builder(context)
+            .components {
+                add(OkHttpNetworkFetcherFactory(callFactory = { userStateViewModel.okHttpClient }))
+            }
+            .build()
+    }
+}

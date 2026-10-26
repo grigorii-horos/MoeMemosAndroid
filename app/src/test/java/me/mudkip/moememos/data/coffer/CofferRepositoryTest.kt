@@ -24,7 +24,11 @@ private class FakeApi(var notes: List<CofferNote> = emptyList()) : CofferApi {
     override suspend fun createNote(body: JsonObject): ApiResponse<CofferNote> { bodies += body; return ApiResponse.Success(echo(9)) }
     override suspend fun updateNote(id: Long, body: JsonObject): ApiResponse<CofferNote> { bodies += body; return ApiResponse.Success(echo(id)) }
     override suspend fun deleteNote(id: Long): ApiResponse<Unit> { deleted += id; return ApiResponse.Success(Unit) }
-    override suspend fun upload(file: MultipartBody.Part) = ApiResponse.Success(CofferFile("u.png", "image/png"))
+    var uploadedTo: Pair<String?, Long?>? = null
+    override suspend fun upload(file: MultipartBody.Part, node: String?, id: Long?): ApiResponse<CofferFile> {
+        uploadedTo = node to id
+        return ApiResponse.Success(CofferFile("notes/notes/5/u.png", "image/png"))
+    }
     override suspend fun me() = ApiResponse.Success(CofferMe(1, "o"))
     override suspend fun health() = ApiResponse.Success(CofferHealth("ok", "x"))
 }
@@ -84,6 +88,31 @@ class CofferRepositoryTest {
         val res = repo(api).updateMemo("5", pinned = true, archived = true)
         assertTrue(res is ApiResponse.Success)
         assertEquals(emptySet<String>(), api.bodies.single().keys)
+    }
+
+    @Test
+    fun bareNamesBecomeUrlsAndFilenamesAreShort() = runTest {
+        val api = FakeApi(listOf(CofferNote(5, "T", "![](a.jpg)", gallery = listOf(CofferFile("notes/notes/5/a.jpg")))))
+        val memo = (repo(api).listMemos() as ApiResponse.Success).data.single()
+        assertEquals("# T\n\n![](https://c.lan/uploads/notes/notes/5/a.jpg)", memo.content)
+        assertEquals("a.jpg", memo.resources.single().filename)
+    }
+
+    @Test
+    fun ownUrlsGoBackToBareNames() = runTest {
+        val api = FakeApi()
+        repo(api).updateMemo("5", content = "# T\n![](https://c.lan/uploads/notes/notes/5/a.jpg) ![](https://c.lan/uploads/notes/notes/6/b.jpg)")
+        assertEquals("![](a.jpg) ![](https://c.lan/uploads/notes/notes/6/b.jpg)", api.bodies.single()["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun uploadForAKnownNoteGoesToItsDirectory() = runTest {
+        val api = FakeApi()
+        val res = repo(api).createResource("u.png", null, 1, { "x".byteInputStream() }, memoRemoteId = "5")
+        assertEquals("notes:notes" to 5L, api.uploadedTo)
+        assertEquals("u.png", (res as ApiResponse.Success).data.filename)
+        repo(api).createResource("u.png", null, 1, { "x".byteInputStream() }, memoRemoteId = null)
+        assertEquals(null to null, api.uploadedTo)
     }
 
     @Test

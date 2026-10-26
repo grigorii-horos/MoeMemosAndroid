@@ -26,6 +26,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import coil3.ImageLoader
+import coil3.compose.LocalPlatformContext
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownCheckBox
@@ -50,6 +54,8 @@ fun Markdown(
     modifier: Modifier = Modifier,
     textAlign: TextAlign? = null,
     imageBaseUrl: String? = null,
+    // The account's loader, so an image that needs the account's credentials loads like an attachment.
+    imageLoader: ImageLoader? = null,
     checkboxChange: ((checked: Boolean, startOffset: Int, endOffset: Int) -> Unit)? = null,
     selectable: Boolean = false,
     onTagClick: ((tag: String) -> Unit)? = null,
@@ -82,11 +88,17 @@ fun Markdown(
             uriHandler.openUri(url)
         }
     }
-    val imageTransformer = remember(imageBaseUrl) {
+    val imageTransformer = remember(imageBaseUrl, imageLoader) {
         object : ImageTransformer {
             @Composable
             override fun transform(link: String): ImageData {
-                return Coil3ImageTransformerImpl.transform(resolveMarkdownImageLink(link, imageBaseUrl))
+                val url = resolveMarkdownImageLink(link, imageBaseUrl)
+                if (imageLoader == null) return Coil3ImageTransformerImpl.transform(url)
+                val request = ImageRequest.Builder(LocalPlatformContext.current)
+                    .data(url)
+                    .size(coil3.size.Size.ORIGINAL)
+                    .build()
+                return ImageData(rememberAsyncImagePainter(request, imageLoader))
             }
 
             @Composable
