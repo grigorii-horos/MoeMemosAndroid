@@ -170,6 +170,7 @@ internal fun MemoInputBottomBar(
                         ) {
                             MemoVisibility.entries
                                 .filter { it != MemoVisibility.SPACE || showSpaceVisibility }
+                                .filter { it != MemoVisibility.PROTECTED || currentAccount !is Account.Coffer }
                                 .forEach { visibility ->
                                     DropdownMenuItem(
                                         text = { Text(stringResource(visibility.titleResource)) },

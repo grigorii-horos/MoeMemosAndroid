@@ -41,7 +41,7 @@
     <string name="take_photo">Сделать снимок</string>
     <string name="post">Сообщение</string>
     <string name="any_thoughts">Ваши любые мысли…</string>
-    <string name="input_login_information">Пожалуйста, введите регистрационные данные вашего \n[✍️memos](https://github.com/usememos/memos) сервера.</string>
+    <string name="input_login_information">Введите данные для входа на ваш \n[✍️memos](https://github.com/usememos/memos) или [Coffer](https://github.com/grigorii-horos/coffer) сервер. Для Coffer нужен API-токен.</string>
     <string name="day">День</string>
     <string name="user_state_not_found">Пользователь не найден</string>
     <string name="cancel">Отмена</string>

@@ -54,6 +54,7 @@ fun SideDrawer(
     memosNavController: NavHostController,
     drawerState: DrawerState? = null
 ) {
+    val isCoffer = isCofferAccount()
     val weekDays = remember {
         val day = WeekFields.of(Locale.getDefault()).firstDayOfWeek
         List(DayOfWeek.entries.size) { index ->
@@ -175,7 +176,7 @@ fun SideDrawer(
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
             )
         }
-        item {
+        if (!isCoffer) item {
             NavigationDrawerItem(
                 label = { Text(R.string.archived.string) },
                 icon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) },

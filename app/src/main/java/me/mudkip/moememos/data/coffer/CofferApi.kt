@@ -28,6 +28,9 @@ object CofferNode {
     const val DIR = "notes/notes"
     const val LIST = "api/node/notes"
     const val ITEM = "api/item/notes/notes/{id}"
+    const val ACTIVITY = "api/activity/notes/notes/{id}"
+    /** `_visibility` of a private record; absent or null is public. */
+    const val PRIVATE = "private"
     const val TITLE = "title"
     const val TEXT = "text"
     const val TAGS = "tags"
@@ -38,6 +41,12 @@ object CofferNode {
 
 @Serializable
 data class CofferFile(val name: String, val mime: String? = null, val size: Long? = null)
+
+@Serializable
+data class CofferActivity(val favorite: Boolean = false)
+
+@Serializable
+data class CofferActivityResponse(val activity: CofferActivity)
 
 @Serializable
 data class CofferNote(
@@ -53,6 +62,11 @@ data class CofferNote(
     @SerialName("updated_at")
     @Serializable(with = Rfc3339InstantSerializer::class)
     val updatedAt: Instant? = null,
+    @SerialName("_visibility")
+    val visibility: String? = null,
+    /** The caller's own activity on the record; `favorite` is what MoeMemos calls pinned. */
+    @SerialName("_activity")
+    val activity: CofferActivity? = null,
 )
 
 @Serializable
@@ -73,6 +87,9 @@ interface CofferApi {
 
     @DELETE(CofferNode.ITEM)
     suspend fun deleteNote(@Path("id") id: Long): ApiResponse<Unit>
+
+    @PATCH(CofferNode.ACTIVITY)
+    suspend fun setFavorite(@Path("id") id: Long, @Body body: JsonObject): ApiResponse<CofferActivityResponse>
 
     @Multipart
     @POST("api/upload")

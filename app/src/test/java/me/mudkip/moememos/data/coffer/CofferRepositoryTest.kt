@@ -2,6 +2,7 @@ package me.mudkip.moememos.data.coffer
 
 import com.skydoves.sandwich.ApiResponse
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -28,6 +29,12 @@ private class FakeApi(var notes: List<CofferNote> = emptyList()) : CofferApi {
     override suspend fun upload(file: MultipartBody.Part, node: String?, id: Long?): ApiResponse<CofferFile> {
         uploadedTo = node to id
         return ApiResponse.Success(CofferFile("notes/notes/5/u.png", "image/png"))
+    }
+    val favorites = mutableListOf<Pair<Long, Boolean>>()
+    override suspend fun setFavorite(id: Long, body: JsonObject): ApiResponse<CofferActivityResponse> {
+        val fav = body["favorite"]!!.jsonPrimitive.content.toBoolean()
+        favorites += id to fav
+        return ApiResponse.Success(CofferActivityResponse(CofferActivity(fav)))
     }
     override suspend fun me() = ApiResponse.Success(CofferMe(1, "o"))
     override suspend fun health() = ApiResponse.Success(CofferHealth("ok", "x"))
@@ -83,11 +90,29 @@ class CofferRepositoryTest {
     }
 
     @Test
-    fun pinnedOnlySendsAnEmptyPatch() = runTest {
-        val api = FakeApi()
+    fun pinnedIsTheFavorite() = runTest {
+        val api = FakeApi(listOf(CofferNote(5, activity = CofferActivity(favorite = true))))
+        assertTrue((repo(api).listMemos() as ApiResponse.Success).data.single().pinned)
         val res = repo(api).updateMemo("5", pinned = true, archived = true)
-        assertTrue(res is ApiResponse.Success)
+        assertTrue((res as ApiResponse.Success).data.pinned)
+        assertEquals(listOf(5L to true), api.favorites)
         assertEquals(emptySet<String>(), api.bodies.single().keys)
+    }
+
+    @Test
+    fun visibilityMapsToCofferPrivateOrPublic() = runTest {
+        val api = FakeApi(listOf(CofferNote(5, visibility = "private"), CofferNote(6)))
+        val memos = (repo(api).listMemos() as ApiResponse.Success).data
+        assertEquals(listOf(MemoVisibility.PRIVATE, MemoVisibility.PUBLIC), memos.map { it.visibility })
+        repo(api).createMemo("t", MemoVisibility.PRIVATE, emptyList())
+        assertEquals("private", api.bodies.last()["_visibility"]!!.jsonPrimitive.content)
+        repo(api).createMemo("t", MemoVisibility.PROTECTED, emptyList())
+        assertEquals(JsonNull, api.bodies.last()["_visibility"])
+        // An update only ever opens a note up: private is never sent again.
+        repo(api).updateMemo("5", visibility = MemoVisibility.PRIVATE)
+        assertEquals(emptySet<String>(), api.bodies.last().keys)
+        repo(api).updateMemo("5", visibility = MemoVisibility.PUBLIC)
+        assertEquals(JsonNull, api.bodies.last()["_visibility"])
     }
 
     @Test

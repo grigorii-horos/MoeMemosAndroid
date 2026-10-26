@@ -52,7 +52,7 @@
     <string name="take_photo">Take Photo</string>
     <string name="post">Post</string>
     <string name="any_thoughts">Any thoughts…</string>
-    <string name="input_login_information">Please input the login information of your \n[✍️memos](https://github.com/usememos/memos) server.</string>
+    <string name="input_login_information">Please input the login information of your \n[✍️memos](https://github.com/usememos/memos) or [Coffer](https://github.com/grigorii-horos/coffer) server. Coffer takes an API token.</string>
     <string name="user_state_not_found">User state not found</string>
     <string name="memos_view_model_not_found" translatable="false">Memos view model not found</string>
     <string name="archived_memo_list_view_model_not_found" translatable="false">Archived memo list view model not found</string>

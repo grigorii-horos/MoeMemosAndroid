@@ -293,7 +293,7 @@ fun MemosCardActionButton(
                         )
                     })
             }
-            DropdownMenuItem(
+            if (!isCofferAccount()) DropdownMenuItem(
                 text = { Text(R.string.archive.string) },
                 onClick = {
                     scope.launch {

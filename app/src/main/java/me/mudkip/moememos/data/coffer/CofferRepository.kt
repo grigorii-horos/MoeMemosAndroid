@@ -3,6 +3,7 @@ package me.mudkip.moememos.data.coffer
 import com.skydoves.sandwich.ApiResponse
 import com.skydoves.sandwich.mapSuccess
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -50,8 +51,8 @@ class CofferRepository(
             remoteId = n.id.toString(),
             content = CofferCompose.bareToUrl(content, files.map { it.name }, "$host/uploads/"),
             date = date,
-            pinned = false,
-            visibility = MemoVisibility.PRIVATE,
+            pinned = n.activity?.favorite == true,
+            visibility = if (n.visibility == CofferNode.PRIVATE) MemoVisibility.PRIVATE else MemoVisibility.PUBLIC,
             resources = files.map { resource(it, date) },
             tags = tags,
             updatedAt = n.updatedAt,
@@ -59,7 +60,22 @@ class CofferRepository(
     }
 
     /** Only the parts that were passed: a `null` leaves those fields untouched on the server. */
-    private fun body(content: String?, resourceNames: List<String>?, id: Long? = null): JsonObject = buildJsonObject {
+    /**
+     * Coffer's visibility only ever opens up: a record is born private or public and can later only
+     * become public. So a create states it, and an update sends only "public"; MoeMemos' PROTECTED
+     * and PUBLIC are both Coffer's public.
+     */
+    private fun body(
+        content: String?,
+        resourceNames: List<String>?,
+        id: Long? = null,
+        visibility: MemoVisibility? = null,
+    ): JsonObject = buildJsonObject {
+        when {
+            visibility == null -> Unit
+            visibility != MemoVisibility.PRIVATE -> put("_visibility", JsonNull)
+            id == null -> put("_visibility", CofferNode.PRIVATE)
+        }
         val own = id?.let { "$host/uploads/${CofferNode.DIR}/$it/" }
         content?.let { CofferCompose.split(if (own == null) it else CofferCompose.urlToBare(it, own)) }?.let { p ->
             put(CofferNode.TITLE, p.title)
@@ -90,7 +106,8 @@ class CofferRepository(
         tags: List<String>?,
         createdAt: Instant?,
         location: MemoLocation?,
-    ): ApiResponse<Memo> = api.createNote(body(content, resourceRemoteIds)).mapSuccess { memo(this) }
+    ): ApiResponse<Memo> =
+        api.createNote(body(content, resourceRemoteIds, visibility = visibility)).mapSuccess { memo(this) }
 
     override suspend fun updateMemo(
         remoteId: String,
@@ -103,7 +120,10 @@ class CofferRepository(
         location: MemoLocationChange?,
     ): ApiResponse<Memo> =
         remoteId.toLong().let { id ->
-            api.updateNote(id, body(content, resourceRemoteIds, id)).mapSuccess { memo(this) }
+            val updated = api.updateNote(id, body(content, resourceRemoteIds, id, visibility)).mapSuccess { memo(this) }
+            if (pinned == null || updated !is ApiResponse.Success) return@let updated
+            api.setFavorite(id, buildJsonObject { put("favorite", pinned) })
+                .mapSuccess { updated.data.copy(pinned = activity.favorite) }
         }
 
     override suspend fun deleteMemo(remoteId: String): ApiResponse<Unit> = api.deleteNote(remoteId.toLong())

@@ -9,10 +9,26 @@ over Coffer's own REST API — no Coffer plugin.
 - **One memo = one note.** The memo text is `# title`, the text, then `#tags`; on save it is split
   back (`data/coffer/CofferCompose.kt`). A tag written mid-text moves to the end after a save.
 - **Attachments** go to `/api/upload`; images land in the note's `gallery`, other files in `files`.
-- **Delete** moves the note to Coffer's trash. Pin, archive, visibility and location are not stored.
+- **Delete** moves the note to Coffer's trash.
+- **Pin** is the note's favorite in Coffer (per person). **Visibility**: private or public — a
+  note is born either and can later only become public; "protected" is not offered. **Archive**
+  and **location** have no Coffer counterpart and are hidden for a Coffer account.
+- **A file of the note** is linked in its text by the bare name (`![](foto.jpg)`); the app shows it
+  as a URL and writes it back bare.
 - A self-signed home CA must be installed on the phone as a user certificate.
 
 Branch `coffer` carries the fork; `upstream` is mudkipme/MoeMemosAndroid.
+
+**Release:** set `versionName` in `app/build.gradle` to `<upstream>-coffer.<n>` and push the same
+tag (`2.0.6-coffer.1`); the workflow signs it with the repository secrets and attaches the APK to
+a GitHub release (not a pre-release), which Obtainium follows.
+
+**Upstream sync:** `git fetch upstream && git merge upstream/main`. Our own code is under
+`data/coffer/` and `ui/component/CofferAccount.kt`; conflicts can only come from the upstream
+files touched with small branches: `Account.kt`, `UserData.kt`, `AccountService.kt`,
+`UserStateViewModel.kt`, `AccountPage.kt`, `SettingsPage.kt`, `SideDrawer.kt`, `MemosCard.kt`,
+`MemoInputComponents.kt`, `Markdown.kt`, `MemoContent.kt`, `MemoImage.kt`, `AndroidManifest.xml`,
+`build.gradle`, the release workflow and the `app_name`/`input_login_information` strings.
 
 ---
 
