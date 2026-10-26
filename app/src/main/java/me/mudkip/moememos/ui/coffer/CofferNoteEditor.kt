@@ -45,6 +45,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import me.mudkip.moememos.R
@@ -110,8 +114,10 @@ fun CofferNoteEditor(
     val tags = remember { mutableStateListOf<String>() }
     // What this screen last handed out: a different `content` came from outside (a restored draft).
     var emitted by remember { mutableStateOf<String?>(null) }
-    var webView by remember { mutableStateOf<WebView?>(null) }
     var ready by remember { mutableStateOf(false) }
+    // The loader stays until the editor has drawn THIS note (the shared WebView may still show the last one).
+    var shown by remember { mutableStateOf(false) }
+    var generation by remember { mutableStateOf(0) }
     val dark = isSystemInDarkTheme()
 
     fun emit() {
@@ -130,7 +136,8 @@ fun CofferNoteEditor(
                 put("id", recordId.toString())
             })
         }
-        webView?.evaluateJavascript("window.cofferEditor && window.cofferEditor.load($doc)", null)
+        shown = false
+        CofferEditorHost.load(doc.toString())
     }
 
     LaunchedEffect(content) {
@@ -158,27 +165,33 @@ fun CofferNoteEditor(
             ),
         )
 
-        val context = LocalContext.current
-        val proxy = CofferEditorProxies.forHost(host) {
-            CofferEditorProxy(userState.okHttpClient, host, proxiedPrefixes(context), File(context.cacheDir, "coffer-editor"))
+        val proxy = rememberCofferEditorProxy()
+        val listener = remember {
+            object : CofferEditorHost.Listener {
+                override fun onReady() { ready = true; loadIntoEditor() }
+                override fun onChange(markdown: String) { text = markdown; emit() }
+                override fun onShown() { shown = true }
+                // A dead renderer: a fresh WebView is built and attached instead of crashing the app.
+                override fun onGone() { ready = false; generation++ }
+            }
         }
-        // A dead renderer (killed for memory) is replaced by a fresh WebView instead of taking the app down.
-        var generation by remember { mutableStateOf(0) }
-        key(generation) {
-            AndroidView(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                factory = { ctx ->
-                    ready = false
-                    editorWebView(
-                        ctx,
-                        proxy,
-                        onReady = { ready = true; loadIntoEditor() },
-                        onChange = { md -> text = md; emit() },
-                        onGone = { generation++ },
-                    ).also { webView = it }
-                },
-                onRelease = { it.destroy() },
-            )
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            key(generation) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        CofferEditorHost.warm(ctx, proxy)
+                        CofferEditorHost.attach(ctx, listener)
+                    },
+                    onRelease = { CofferEditorHost.detach(listener) },
+                )
+            }
+            if (!shown) {
+                Box(
+                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
+            }
         }
 
         TagChips(tags = tags, known = knownTags, onChange = { emit() })
@@ -251,66 +264,31 @@ private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: (
     }
 }
 
-/** The server path prefixes the bundled page needs forwarded (its `version.json`). */
-private fun proxiedPrefixes(context: android.content.Context): List<String> =
-    context.assets.open("coffer-editor/version.json").use { s ->
-        Json.parseToJsonElement(s.bufferedReader().readText()).jsonObject["proxied"]!!.jsonArray
-            .map { it.jsonPrimitive.content }
-    }
-
-@SuppressLint("SetJavaScriptEnabled")
-private fun editorWebView(
-    context: android.content.Context,
-    proxy: CofferEditorProxy,
-    onReady: () -> Unit,
-    onChange: (String) -> Unit,
-    onGone: () -> Unit,
-): WebView {
-    val assets = WebViewAssetLoader.AssetsPathHandler(context)
-    fun under(dir: String) = WebViewAssetLoader.PathHandler { path -> assets.handle("coffer-editor/$dir/$path") }
-    val loader = WebViewAssetLoader.Builder()
-        .addPathHandler("/embed/", under("embed"))
-        .addPathHandler("/assets/", under("assets"))
-        .addPathHandler("/vendor/", under("vendor"))
-        .build()
-    val main = Handler(Looper.getMainLooper())
-    return WebView(context).apply {
-        settings.javaScriptEnabled = true
-        settings.domStorageEnabled = true
-        webViewClient = object : WebViewClient() {
-            // A link tapped in the note opens outside; the editor page never leaves its own origin,
-            // so no other page ever gets the note's bridge.
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (isEditorPage(request.url.toString())) return false
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, request.url)) }
-                return true
-            }
-
-            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                main.post(onGone)
-                return true
-            }
-
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                loader.shouldInterceptRequest(request.url)
-                    ?: proxy.handle(request.url.toString(), request.method)?.let {
-                        WebResourceResponse(it.mime, null, it.status, if (it.status < 400) "OK" else "Error", it.headers, it.body)
-                    }
+/** The editor's request proxy for the current account — one per process (`CofferEditorProxies`). */
+@Composable
+private fun rememberCofferEditorProxy(): () -> CofferEditorProxy {
+    val userState = LocalUserState.current
+    val context = LocalContext.current
+    val host = userState.host.trimEnd('/')
+    return {
+        CofferEditorProxies.forHost(host) {
+            CofferEditorProxy(
+                userState.okHttpClient,
+                host,
+                CofferEditorHost.proxiedPrefixes(context),
+                File(context.cacheDir, "coffer-editor"),
+            )
         }
-        addJavascriptInterface(CofferBridge(main, onReady, onChange), "CofferBridge")
-        loadUrl(EDITOR_URL)
     }
 }
 
-/** What the editor page calls (`window.CofferBridge`); always answered on the main thread. */
-class CofferBridge(private val main: Handler, private val ready: () -> Unit, private val change: (String) -> Unit) {
-    @JavascriptInterface
-    fun onReady() {
-        main.post(ready)
-    }
-
-    @JavascriptInterface
-    fun onChange(markdown: String) {
-        main.post { change(markdown) }
-    }
+/**
+ * Boots the editor WebView in the background as soon as a Coffer account's notes are on screen,
+ * so the first note opens without the page assembling itself.
+ */
+@Composable
+fun CofferEditorPrewarm() {
+    val context = LocalContext.current
+    val proxy = rememberCofferEditorProxy()
+    LaunchedEffect(Unit) { CofferEditorHost.warm(context, proxy) }
 }

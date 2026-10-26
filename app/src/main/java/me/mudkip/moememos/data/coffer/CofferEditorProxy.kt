@@ -8,6 +8,7 @@ import okhttp3.Response
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.util.concurrent.TimeUnit
 
 /** The local origin the embedded editor page is served from (androidx.webkit's asset loader). */
 const val ASSET_ORIGIN = "https://appassets.androidplatform.net"
@@ -42,6 +43,9 @@ class CofferEditorProxy(
     private val cache = cacheDir?.let { Cache(it, CACHE_BYTES) }
 
     private val client: OkHttpClient = client.newBuilder().apply {
+        // A dead connection (Wi-Fi without internet) must fall back to the cache quickly.
+        connectTimeout(5, TimeUnit.SECONDS)
+        readTimeout(10, TimeUnit.SECONDS)
         if (cache != null) {
             cache(cache)
             // Store every answer, revalidate it while online: an offline FORCE_CACHE read then
@@ -61,6 +65,14 @@ class CofferEditorProxy(
         val path = url.removePrefix(ASSET_ORIGIN)
         if (prefixes.none { path.startsWith(it) }) return null
         val request = Request.Builder().url(host + path).method(method, null).build()
+        // A plugin bundle is addressed by its version: a stored copy is the right one.
+        if (path.startsWith("/plugins/") && "?v=" in path) {
+            val cached = runCatching {
+                client.newCall(request.newBuilder().cacheControl(CacheControl.FORCE_CACHE).build()).execute()
+            }.getOrNull()
+            if (cached != null && cached.code != 504) return cached.toProxyResponse()
+            cached?.close()
+        }
         val response = try {
             client.newCall(request).execute()
         } catch (_: IOException) {

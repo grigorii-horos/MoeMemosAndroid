@@ -96,4 +96,15 @@ class CofferEditorProxyTest {
         assertFalse(isEditorPage("https://example.com/x"))
         assertFalse(isEditorPage("https://appassets.androidplatform.net.evil.com/"))
     }
+
+    // A plugin bundle is addressed by its version (`?v=`): a stored copy is the right one, so the
+    // editor does not wait on the network for ~28 bundles at every boot.
+    @Test
+    fun versionedPluginBundlesComeFromTheCacheFirst() {
+        val onlyIfCached = mutableListOf<Boolean>()
+        val proxy = CofferEditorProxy(client { req -> onlyIfCached += req.cacheControl.onlyIfCached; ok(req) }, "https://h", prefixes)
+        proxy.handle("$ASSET_ORIGIN/plugins/notes/schema.js?v=1", "GET")
+        proxy.handle("$ASSET_ORIGIN/api/plugins", "GET")
+        assertEquals(listOf(true, false), onlyIfCached)
+    }
 }

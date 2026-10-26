@@ -26,14 +26,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.mudkip.moememos.R
 import me.mudkip.moememos.viewmodel.LocalUserState
+import me.mudkip.moememos.data.model.Account
+import me.mudkip.moememos.ext.navigateToMemoEditor
+import me.mudkip.moememos.ui.coffer.CofferEditorPrewarm
+import me.mudkip.moememos.ui.page.common.LocalRootNavController
 
 @Composable
 internal fun MemoBrowser(listPane: @Composable ((String) -> Unit) -> Unit) {
     val account by LocalUserState.current.currentAccount.collectAsStateWithLifecycle()
     // A selected memo and its pane history belong to one account only.
     key(account?.accountKey()) {
+        val rootNav = LocalRootNavController.current
+        if (account is Account.Coffer) CofferEditorPrewarm()
         MemoListDetailLayout(
-            listPane = listPane,
+            // A Coffer note opens straight in its editor, not in the read-only preview.
+            listPane = if (account is Account.Coffer) { _ -> listPane { rootNav.navigateToMemoEditor(it) } } else listPane,
             detailPane = { identifier, onBack -> MemoDetailContent(identifier, onBack) },
         )
     }

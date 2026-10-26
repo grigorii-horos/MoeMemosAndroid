@@ -32,7 +32,7 @@ a GitHub release (not a pre-release), which Obtainium follows.
 `scripts/sync-coffer-editor.sh` and `assets/coffer-editor/`; conflicts can only come from the upstream
 files touched with small branches: `Account.kt`, `UserData.kt`, `AccountService.kt`,
 `UserStateViewModel.kt`, `AccountPage.kt`, `SettingsPage.kt`, `SideDrawer.kt`, `MemosCard.kt`,
-`MemoInputComponents.kt`, `MemoInputPage.kt`, `proguard-rules.pro`, `Markdown.kt`, `MemoContent.kt`, `MemoImage.kt`, `AndroidManifest.xml`,
+`MemoInputComponents.kt`, `MemoInputPage.kt`, `MemoListDetailLayout.kt`, `proguard-rules.pro`, `Markdown.kt`, `MemoContent.kt`, `MemoImage.kt`, `AndroidManifest.xml`,
 `build.gradle`, the release workflow and the `app_name`/`input_login_information` strings.
 
 ---
