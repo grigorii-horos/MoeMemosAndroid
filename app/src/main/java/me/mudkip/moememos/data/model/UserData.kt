@@ -9,11 +9,13 @@ data class UserData(
     val memosV0: MemosAccount? = null,
     val memosV1: MemosAccount? = null,
     val local: LocalAccount? = null,
+    val coffer: MemosAccount? = null,
 ) {
     enum class AccountCase {
         MEMOS_V0,
         MEMOS_V1,
         LOCAL,
+        COFFER,
         ACCOUNT_NOT_SET,
     }
 
@@ -22,6 +24,7 @@ data class UserData(
             memosV0 != null -> AccountCase.MEMOS_V0
             memosV1 != null -> AccountCase.MEMOS_V1
             local != null -> AccountCase.LOCAL
+            coffer != null -> AccountCase.COFFER
             else -> AccountCase.ACCOUNT_NOT_SET
         }
 }

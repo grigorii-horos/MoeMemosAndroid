@@ -210,11 +210,11 @@ fun SettingsPage(
                         }
                     }
 
-                    is Account.MemosV1 -> item {
+                    is Account.MemosV1, is Account.Coffer -> item {
                         SettingItem(
                             icon = MemosIcon,
-                            text = account.info.displayTitle(),
-                            subtitle = account.info.host,
+                            text = account.getAccountInfo()!!.displayTitle(),
+                            subtitle = account.getAccountInfo()!!.host,
                             trailingIcon = {
                                 if (currentAccount?.accountKey() == account.accountKey()) {
                                     Icon(

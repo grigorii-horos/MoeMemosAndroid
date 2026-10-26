@@ -7,11 +7,13 @@ sealed class Account {
         is MemosV0 -> "memos:${this.info.host}:${this.info.remoteIdentifier}"
         is MemosV1 -> "memos:${this.info.host}:${this.info.remoteIdentifier}"
         is Local -> "local"
+        is Coffer -> "coffer:${this.info.host}:${this.info.remoteIdentifier}"
     }
 
     fun getAccountInfo(): MemosAccount? = when (this) {
         is MemosV0 -> this.info
         is MemosV1 -> this.info
+        is Coffer -> this.info
         else -> null
     }
 
@@ -19,12 +21,14 @@ sealed class Account {
         is MemosV0 -> info.toUser()
         is MemosV1 -> info.toUser()
         is Local -> info.toUser()
+        is Coffer -> info.toUser()
     }
 
     fun withUser(user: User): Account = when (this) {
         is MemosV0 -> MemosV0(info.withUser(user))
         is MemosV1 -> MemosV1(info.withUser(user))
         is Local -> Local(info.withUser(user))
+        is Coffer -> Coffer(info.withUser(user))
     }
 
     companion object {
@@ -32,6 +36,7 @@ sealed class Account {
             UserData.AccountCase.MEMOS_V0 -> userData.memosV0?.let { MemosV0(it) }
             UserData.AccountCase.MEMOS_V1 -> userData.memosV1?.let { MemosV1(it) }
             UserData.AccountCase.LOCAL -> Local(userData.local ?: LocalAccount())
+            UserData.AccountCase.COFFER -> userData.coffer?.let { Coffer(it) }
             else -> null
         }
     }
@@ -39,6 +44,7 @@ sealed class Account {
     class MemosV0(val info: MemosAccount) : Account()
     class MemosV1(val info: MemosAccount) : Account()
     class Local(val info: LocalAccount = LocalAccount()) : Account()
+    class Coffer(val info: MemosAccount) : Account()
 }
 
 private fun MemosAccount.toUser(): User {

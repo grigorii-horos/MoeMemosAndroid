@@ -260,5 +260,6 @@ private fun exportTimestamp(instant: Instant): String {
 private fun Account?.toMemosAccount(): MemosAccount? = when (this) {
     is Account.MemosV0 -> info
     is Account.MemosV1 -> info
+    is Account.Coffer -> info
     else -> null
 }

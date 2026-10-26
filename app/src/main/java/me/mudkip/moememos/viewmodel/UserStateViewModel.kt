@@ -53,6 +53,7 @@ class UserStateViewModel @Inject constructor(
                 host = when(it) {
                     is Account.MemosV0 -> it.info.host
                     is Account.MemosV1 -> it.info.host
+                    is Account.Coffer -> it.info.host
                     else -> ""
                 }
             }
@@ -103,6 +104,7 @@ class UserStateViewModel @Inject constructor(
             when (accountCase) {
                 UserData.AccountCase.MEMOS_V1 -> loginMemosV1WithAccessToken(host, accessToken, accountLabel)
                 UserData.AccountCase.MEMOS_V0 -> loginMemosV0WithAccessToken(host, accessToken, accountLabel)
+                UserData.AccountCase.COFFER -> loginCofferWithAccessToken(host, accessToken, accountLabel)
                 else -> throw MoeMemosException.invalidServer
             }
         } catch (e: Throwable) {
@@ -143,6 +145,34 @@ class UserStateViewModel @Inject constructor(
                 return@withContext ApiResponse.exception(MoeMemosException.notLogin)
             }
             accountService.addAccount(getAccount(host, accessToken, accountLabel, user))
+            loadCurrentUser().mapSuccess {}
+        } catch (e: Throwable) {
+            ApiResponse.exception(e)
+        }
+    }
+
+    private suspend fun loginCofferWithAccessToken(
+        host: String,
+        accessToken: String,
+        accountLabel: String,
+    ): ApiResponse<Unit> = withContext(viewModelScope.coroutineContext) {
+        try {
+            val resp = accountService.createCofferClient(host, accessToken).second.me()
+            if (resp !is ApiResponse.Success) {
+                return@withContext resp.mapSuccess {}
+            }
+            val me = resp.data
+            accountService.addAccount(
+                Account.Coffer(
+                    MemosAccount(
+                        host = host,
+                        accessToken = accessToken,
+                        name = me.displayName ?: me.login,
+                        accountLabel = accountLabel.trim(),
+                        remoteIdentifier = me.id.toString(),
+                    )
+                )
+            )
             loadCurrentUser().mapSuccess {}
         } catch (e: Throwable) {
             ApiResponse.exception(e)

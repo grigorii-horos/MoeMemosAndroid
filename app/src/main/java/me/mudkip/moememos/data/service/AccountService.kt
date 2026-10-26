@@ -47,6 +47,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import me.mudkip.moememos.data.coffer.CofferApi
+import me.mudkip.moememos.data.coffer.CofferRepository
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.io.File
 import java.time.Instant
@@ -165,6 +167,20 @@ class AccountService @Inject constructor(
             is Account.MemosV1 -> {
                 val (client, memosApi) = createMemosV1Client(account.info.host, account.info.accessToken)
                 val remote = MemosV1Repository(memosApi, account)
+                this.repository = SyncingRepository(
+                    database.memoDao(),
+                    fileStorage,
+                    remote,
+                    account
+                ) { user ->
+                    updateAccountFromSyncedUser(account.accountKey(), user)
+                }
+                this.remoteRepository = remote
+                this.httpClient = client
+            }
+            is Account.Coffer -> {
+                val (client, cofferApi) = createCofferClient(account.info.host, account.info.accessToken)
+                val remote = CofferRepository(cofferApi, account)
                 this.repository = SyncingRepository(
                     database.memoDao(),
                     fileStorage,
@@ -384,6 +400,30 @@ class AccountService @Inject constructor(
             .create(MemosV1Api::class.java)
     }
 
+    fun createCofferClient(host: String, accessToken: String?): Pair<OkHttpClient, CofferApi> {
+        val client = okHttpClient.newBuilder().apply {
+            if (!accessToken.isNullOrBlank()) {
+                addNetworkInterceptor { chain ->
+                    var request = chain.request()
+                    if (shouldAttachAccessToken(request.url, host)) {
+                        request = request.newBuilder()
+                            .addHeader("Authorization", "Bearer $accessToken")
+                            .build()
+                    }
+                    chain.proceed(request)
+                }
+            }
+        }.build()
+
+        return client to Retrofit.Builder()
+            .baseUrl(host)
+            .client(client)
+            .addConverterFactory(networkJson.asConverterFactory("application/json".toMediaType()))
+            .addCallAdapterFactory(ApiResponseCallAdapterFactory.create())
+            .build()
+            .create(CofferApi::class.java)
+    }
+
     suspend fun checkLoginCompatibility(host: String, allowHigherV1Version: Boolean = false): LoginCompatibility {
         val serverVersion = detectAccountCaseAndVersion(host)
         return when (evaluateVersionPolicy(serverVersion)) {
@@ -490,6 +530,12 @@ class AccountService @Inject constructor(
     }
 
     private suspend fun detectAccountCaseAndVersion(host: String): ServerVersionInfo {
+        // Coffer answers /health as {"status":"ok","startedAt":…}; a Memos server does not.
+        val cofferHealth = createCofferClient(host, null).second.health().getOrNull()
+        if (cofferHealth?.status == "ok" && cofferHealth.startedAt != null) {
+            return ServerVersionInfo(UserData.AccountCase.COFFER, "coffer")
+        }
+
         val memosV0Status = createMemosV0Client(host, null).second.status().getOrNull()
         val memosV0Version = memosV0Status?.profile?.version?.trim().orEmpty()
         if (memosV0Version.isNotEmpty()) {
@@ -547,6 +593,7 @@ class AccountService @Inject constructor(
         return when (account) {
             is Account.MemosV0 -> Account.MemosV0(account.info.copy(accessToken = token))
             is Account.MemosV1 -> Account.MemosV1(account.info.copy(accessToken = token))
+            is Account.Coffer -> Account.Coffer(account.info.copy(accessToken = token))
             is Account.Local -> account
         }
     }
@@ -563,6 +610,11 @@ class AccountService @Inject constructor(
                 accountKey = accountKey(),
                 memosV1 = info.copy(accessToken = "")
             )
+            is Account.Coffer -> UserData(
+                settings = settings,
+                accountKey = accountKey(),
+                coffer = info.copy(accessToken = "")
+            )
             is Account.Local -> UserData(
                 settings = settings,
                 accountKey = accountKey(),
@@ -575,6 +627,7 @@ class AccountService @Inject constructor(
         when (account) {
             is Account.MemosV0 -> secureTokenStorage.saveToken(account.accountKey(), account.info.accessToken)
             is Account.MemosV1 -> secureTokenStorage.saveToken(account.accountKey(), account.info.accessToken)
+            is Account.Coffer -> secureTokenStorage.saveToken(account.accountKey(), account.info.accessToken)
             is Account.Local -> Unit
         }
     }
@@ -611,6 +664,7 @@ class AccountService @Inject constructor(
                     else -> VersionPolicy.SUPPORTED
                 }
             }
+            UserData.AccountCase.COFFER -> VersionPolicy.SUPPORTED
             else -> VersionPolicy.TOO_LOW
         }
     }
