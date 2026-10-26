@@ -55,10 +55,21 @@ class CofferComposeTest {
 
     @Test
     fun joinOmitsEmptyParts() {
-        assertEquals("#idea", CofferCompose.join(NoteParts("", "", listOf("idea"))))
+        assertEquals("#\n\n#idea", CofferCompose.join(NoteParts("", "", listOf("idea"))))
         assertEquals("# T", CofferCompose.join(NoteParts("T", "", emptyList())))
-        assertEquals("only", CofferCompose.join(NoteParts("", "only", emptyList())))
+        assertEquals("#\n\nonly", CofferCompose.join(NoteParts("", "only", emptyList())))
+        assertEquals("", CofferCompose.join(NoteParts("", "", emptyList())))
     }
+
+    @Test
+    fun emptyTitleSurvivesTheEditorRoundTrip() {
+        val parts = NoteParts("", "first line\nsecond", listOf("x"))
+        assertEquals(parts, split(CofferCompose.join(parts)))
+    }
+
+    @Test
+    fun memoTypedWithoutAHeadingStillPromotesItsFirstLine() =
+        assertEquals(NoteParts("first", "rest", emptyList()), split("first\nrest"))
 
     @Test
     fun joinFull() =

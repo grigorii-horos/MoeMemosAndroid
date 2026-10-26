@@ -83,9 +83,16 @@ object CofferCompose {
         d.removePrefix(recordBase).takeIf { d.startsWith(recordBase) && it.isNotEmpty() && '/' !in it }
     }
 
-    fun join(p: NoteParts): String = listOfNotNull(
-        p.title.takeIf { it.isNotBlank() }?.let { "# $it" },
-        p.text.takeIf { it.isNotBlank() },
-        p.tags.takeIf { it.isNotEmpty() }?.joinToString(" ") { "#$it" },
-    ).joinToString("\n\n")
+    /**
+     * An empty title is written as a bare `#` line — an empty heading, invisible when rendered —
+     * so [split] reads it back as empty instead of promoting the text's first line.
+     */
+    fun join(p: NoteParts): String {
+        val body = listOfNotNull(
+            p.text.takeIf { it.isNotBlank() },
+            p.tags.takeIf { it.isNotEmpty() }?.joinToString(" ") { "#$it" },
+        )
+        if (p.title.isBlank() && body.isEmpty()) return ""
+        return (listOf(if (p.title.isBlank()) "#" else "# ${p.title}") + body).joinToString("\n\n")
+    }
 }
