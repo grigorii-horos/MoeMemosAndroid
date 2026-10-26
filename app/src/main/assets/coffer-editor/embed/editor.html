@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <title>Coffer editor</title>
+    <!--
+      The embeddable editor (spec 2026-10-27 moememos-coffer-editor): a phone app loads this page
+      from its own assets. The importmap is the application's (index.html), kept identical by
+      vendor/importmap.test.ts; the app serves /vendor/ from its assets and forwards /api/,
+      /uploads/ and /plugins/ to the Coffer host.
+    -->
+
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/vendor/react.js",
+          "react-dom": "/vendor/react-dom.js",
+          "react-dom/client": "/vendor/react-dom-client.js",
+          "react/jsx-runtime": "/vendor/jsx-runtime.js",
+          "i18next": "/vendor/i18next.js",
+          "react-i18next": "/vendor/react-i18next.js",
+          "react-router-dom": "/vendor/react-router-dom.js",
+          "@coffer-org/web-ui": "/vendor/web-ui.js",
+          "@coffer-org/web-ui/render/core/index": "/vendor/web-ui/render/core.js",
+          "@coffer-org/web-ui/render/blocks/index": "/vendor/web-ui/render/blocks.js",
+          "@coffer-org/web-ui/lib/oklch": "/vendor/web-ui/lib/oklch.js",
+          "@coffer-org/markdown": "/vendor/markdown.js",
+          "@coffer-org/locales": "/vendor/locales.js",
+          "@coffer-org/sdk": "/vendor/sdk.js",
+          "@coffer-org/sdk/blank-record": "/vendor/sdk.js",
+          "@coffer-org/sdk/blocks": "/vendor/sdk.js",
+          "@coffer-org/sdk/color-names": "/vendor/sdk.js",
+          "@coffer-org/sdk/collection-diff": "/vendor/sdk.js",
+          "@coffer-org/sdk/collection-write": "/vendor/sdk.js",
+          "@coffer-org/sdk/compose": "/vendor/sdk.js",
+          "@coffer-org/sdk/condition": "/vendor/sdk.js",
+          "@coffer-org/sdk/custom-nodes": "/vendor/sdk.js",
+          "@coffer-org/sdk/countries": "/vendor/sdk.js",
+          "@coffer-org/sdk/currencies": "/vendor/sdk.js",
+          "@coffer-org/sdk/bytes": "/vendor/sdk.js",
+          "@coffer-org/sdk/duration": "/vendor/sdk.js",
+          "@coffer-org/sdk/dates": "/vendor/sdk.js",
+          "@coffer-org/sdk/disk-kinds": "/vendor/sdk.js",
+          "@coffer-org/sdk/extend": "/vendor/sdk.js",
+          "@coffer-org/sdk/field-helpers": "/vendor/sdk.js",
+          "@coffer-org/sdk/field-presets": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/choice": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/constants": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/convert": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/meta": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/normalize": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/secret": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/fetch": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/search": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/text": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/type-notes": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/url": "/vendor/sdk.js",
+          "@coffer-org/sdk/fields/validation": "/vendor/sdk.js",
+          "@coffer-org/sdk/lock-path": "/vendor/sdk.js",
+          "@coffer-org/sdk/logger": "/vendor/sdk.js",
+          "@coffer-org/sdk/list-kind": "/vendor/sdk.js",
+          "@coffer-org/sdk/menu": "/vendor/sdk.js",
+          "@coffer-org/sdk/message": "/vendor/sdk.js",
+          "@coffer-org/sdk/message-parts": "/vendor/sdk.js",
+          "@coffer-org/sdk/node-overrides": "/vendor/sdk.js",
+          "@coffer-org/sdk/materialize/composite": "/vendor/sdk.js",
+          "@coffer-org/sdk/materialize/decl": "/vendor/sdk.js",
+          "@coffer-org/sdk/materialize/pipeline": "/vendor/sdk.js",
+          "@coffer-org/sdk/materialize/registry": "/vendor/sdk.js",
+          "@coffer-org/sdk/mutate-graph": "/vendor/sdk.js",
+          "@coffer-org/sdk/node-id": "/vendor/sdk.js",
+          "@coffer-org/sdk/option-overlay": "/vendor/sdk.js",
+          "@coffer-org/sdk/option-refs": "/vendor/sdk.js",
+          "@coffer-org/sdk/field-path": "/vendor/sdk.js",
+          "@coffer-org/sdk/field-backup": "/vendor/sdk.js",
+          "@coffer-org/sdk/node-backup": "/vendor/sdk.js",
+          "@coffer-org/sdk/mutate-path": "/vendor/sdk.js",
+          "@coffer-org/sdk/node": "/vendor/sdk.js",
+          "@coffer-org/sdk/option-lists": "/vendor/sdk.js",
+          "@coffer-org/sdk/package": "/vendor/sdk.js",
+          "@coffer-org/sdk/parts": "/vendor/sdk.js",
+          "@coffer-org/sdk/plugin": "/vendor/sdk.js",
+          "@coffer-org/sdk/record-fetch": "/vendor/sdk.js",
+          "@coffer-org/sdk/search": "/vendor/sdk.js",
+          "@coffer-org/sdk/settings": "/vendor/sdk.js",
+          "@coffer-org/sdk/shelf": "/vendor/sdk.js",
+          "@coffer-org/sdk/units": "/vendor/sdk.js",
+          "@coffer-org/sdk/upload-names": "/vendor/sdk.js",
+          "@coffer-org/sdk/users-shelf": "/vendor/sdk.js",
+          "@coffer-org/sdk/version": "/vendor/sdk.js"
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/editor-Hie8esbd.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-B-1-B7_t.js">
+    <link rel="modulepreload" crossorigin href="/assets/uk-kS-lP_Zm.js">
+    <link rel="modulepreload" crossorigin href="/assets/uk-C1qjuQL7.js">
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-DxWiKyOd.js">
+    <link rel="stylesheet" crossorigin href="/assets/editor-D7CscNci.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

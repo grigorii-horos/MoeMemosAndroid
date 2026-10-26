@@ -1,0 +1,1 @@
+import{group as a}from"@coffer-org/sdk/fields";var t="travel.dates";function n(e){const r=Object.keys(e?.source??{});if(r.length!==1)throw new Error(`travel.dates: \`source\` takes exactly one field, got ${r.length}`);return{...a({label:e.label,fields:e.source,ui:{kind:t}}),view:{kind:t,source:r[0]}}}export{n,t};

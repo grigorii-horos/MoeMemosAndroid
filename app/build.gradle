@@ -104,6 +104,7 @@ dependencies {
     implementation "com.squareup.retrofit2:retrofit:${rootProject.ext.retrofit_version}"
     implementation "com.squareup.retrofit2:converter-kotlinx-serialization:${rootProject.ext.retrofit_version}"
     implementation "com.squareup.okhttp3:okhttp:${rootProject.ext.okhttp_version}"
+    implementation "androidx.webkit:webkit:1.12.1"
     implementation "com.squareup.okhttp3:okhttp-urlconnection:${rootProject.ext.okhttp_version}"
     implementation "com.github.skydoves:sandwich:${rootProject.ext.sandwich}"
     implementation "com.github.skydoves:sandwich-retrofit:${rootProject.ext.sandwich}"
