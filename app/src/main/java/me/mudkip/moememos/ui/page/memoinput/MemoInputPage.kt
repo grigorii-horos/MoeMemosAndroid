@@ -41,6 +41,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.mudkip.moememos.MoeMemosFileProvider
 import me.mudkip.moememos.data.model.Account
+import me.mudkip.moememos.ui.coffer.CofferNoteEditor
 import me.mudkip.moememos.data.model.MemoLocation
 import me.mudkip.moememos.data.model.MemoLocationChange
 import me.mudkip.moememos.data.model.MemoVisibility
@@ -284,7 +285,7 @@ fun MemoInputPage(
             SnackbarHost(hostState = snackbarState)
         }
     ) { innerPadding ->
-        MemoInputEditor(
+        if (currentAccount is Account.Coffer) CofferNoteEditor(Modifier.padding(innerPadding), text.text, { text = TextFieldValue(it) }, memo, viewModel.uploadResources.toList(), viewModel) else MemoInputEditor(
             modifier = Modifier.padding(innerPadding),
             text = text,
             onTextChange = { updated ->

@@ -201,7 +201,7 @@ internal fun MemoInputBottomBar(
                     }
                 }
 
-                if (tags.isEmpty()) {
+                if (currentAccount is Account.Coffer) Unit else if (tags.isEmpty()) {
                     ActionIconButton(label = stringResource(R.string.tag), onClick = onHashTagClick) {
                         Icon(Icons.Outlined.Tag, contentDescription = stringResource(R.string.tag))
                     }
@@ -231,7 +231,7 @@ internal fun MemoInputBottomBar(
                     }
                 }
 
-                ActionIconButton(label = stringResource(R.string.add_task), onClick = onToggleTodoItem) {
+                if (currentAccount !is Account.Coffer) ActionIconButton(label = stringResource(R.string.add_task), onClick = onToggleTodoItem) {
                     Icon(Icons.Outlined.CheckBox, contentDescription = stringResource(R.string.add_task))
                 }
 
@@ -255,7 +255,7 @@ internal fun MemoInputBottomBar(
 
                 Spacer(modifier = Modifier.size(4.dp))
 
-                FormattingButtons(onFormat = onFormat)
+                if (currentAccount !is Account.Coffer) FormattingButtons(onFormat = onFormat)
             }
         }
     }

@@ -55,6 +55,9 @@ The fork must stay cheap to merge with upstream. That decides where a change goe
 
 - Signing key: `~/Sync/Configs/Things/android/signing/release.jks` (alias `grigorii`, password in
   `release.pass`, same for the key). Never print or commit it.
+- Refresh the editor bundle first when Coffer's editor changed: `scripts/sync-coffer-editor.sh
+  [../coffer]` (builds `npm run build:embed-editor -w @coffer-org/web` there and copies the page and
+  `dist-vendor` into `assets/coffer-editor/`; commit them — CI builds without a Coffer checkout).
 - Bump `versionName` in `app/build.gradle` to `<upstream version>-coffer.<n>`, commit, push a tag
   with exactly that name. `.github/workflows/build-signed-release-apk.yml` signs it with the
   repository secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_SIGNING_STORE_PASSWORD`,

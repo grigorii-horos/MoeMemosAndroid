@@ -15,6 +15,10 @@ over Coffer's own REST API — no Coffer plugin.
   and **location** have no Coffer counterpart and are hidden for a Coffer account.
 - **A file of the note** is linked in its text by the bare name (`![](foto.jpg)`); the app shows it
   as a URL and writes it back bare.
+- **Editing** a Coffer note uses Coffer's own markdown editor (the same one as the web: directive
+  blocks, mentions, tables, task lists kept as Coffer writes them): a title field, the editor in a
+  WebView over the bundled page `assets/coffer-editor/` (works offline), tags as chips. Its server
+  requests go through the account's client (`CofferEditorProxy`), cached for offline use.
 - A self-signed home CA must be installed on the phone as a user certificate.
 
 Branch `coffer` carries the fork; `upstream` is mudkipme/MoeMemosAndroid.
@@ -24,10 +28,11 @@ tag (`2.0.6-coffer.1`); the workflow signs it with the repository secrets and at
 a GitHub release (not a pre-release), which Obtainium follows.
 
 **Upstream sync:** `git fetch upstream && git merge upstream/main`. Our own code is under
-`data/coffer/` and `ui/component/CofferAccount.kt`; conflicts can only come from the upstream
+`data/coffer/`, `ui/coffer/`, `ui/component/CofferAccount.kt`, `res/values*/coffer_strings.xml`,
+`scripts/sync-coffer-editor.sh` and `assets/coffer-editor/`; conflicts can only come from the upstream
 files touched with small branches: `Account.kt`, `UserData.kt`, `AccountService.kt`,
 `UserStateViewModel.kt`, `AccountPage.kt`, `SettingsPage.kt`, `SideDrawer.kt`, `MemosCard.kt`,
-`MemoInputComponents.kt`, `Markdown.kt`, `MemoContent.kt`, `MemoImage.kt`, `AndroidManifest.xml`,
+`MemoInputComponents.kt`, `MemoInputPage.kt`, `proguard-rules.pro`, `Markdown.kt`, `MemoContent.kt`, `MemoImage.kt`, `AndroidManifest.xml`,
 `build.gradle`, the release workflow and the `app_name`/`input_login_information` strings.
 
 ---

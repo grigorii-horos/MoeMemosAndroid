@@ -110,3 +110,6 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# Coffer fork: the editor WebView calls these from JavaScript (CofferNoteEditor.kt).
+-keepclassmembers class me.mudkip.moememos.ui.coffer.CofferBridge { @android.webkit.JavascriptInterface <methods>; }
