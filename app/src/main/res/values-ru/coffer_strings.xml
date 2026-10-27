@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="coffer_note_title">Заголовок</string>
+    <string name="coffer_add_tag">Тег</string>
 </resources>

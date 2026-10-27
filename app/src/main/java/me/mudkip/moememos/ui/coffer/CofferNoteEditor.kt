@@ -45,6 +45,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.fillMaxSize
@@ -119,6 +132,10 @@ fun CofferNoteEditor(
     var shown by remember { mutableStateOf(false) }
     var generation by remember { mutableStateOf(0) }
     val dark = isSystemInDarkTheme()
+    val theme = materialTokens()
+    var tagFieldFocused by remember { mutableStateOf(false) }
+    // While typing in the note the keyboard needs the room; the tags come back when it closes.
+    val typing = WindowInsets.isImeVisible && !tagFieldFocused
 
     fun emit() {
         val out = CofferCompose.join(NoteParts(title, CofferCompose.bareToUrl(text, files, uploadsBase), tags.toList()))
@@ -131,6 +148,7 @@ fun CofferNoteEditor(
             put("text", text)
             put("lang", Locale.getDefault().language.takeIf { it in setOf("uk", "ru") } ?: "en")
             put("dark", dark)
+            put("theme", buildJsonObject { theme.forEach { (k, v) -> put(k, v) } })
             if (recordId != null) put("record", buildJsonObject {
                 put("node", CofferNode.NODE)
                 put("id", recordId.toString())
@@ -155,13 +173,15 @@ fun CofferNoteEditor(
         TextField(
             value = title,
             onValueChange = { title = it.replace('\n', ' '); emit() },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            placeholder = { Text(stringResource(R.string.coffer_note_title)) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            placeholder = { Text(stringResource(R.string.coffer_note_title), style = MaterialTheme.typography.headlineSmall) },
             singleLine = true,
-            textStyle = MaterialTheme.typography.titleLarge,
+            textStyle = MaterialTheme.typography.headlineSmall,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
             ),
         )
 
@@ -194,7 +214,9 @@ fun CofferNoteEditor(
             }
         }
 
-        TagChips(tags = tags, known = knownTags, onChange = { emit() })
+        if (!typing) {
+            TagChips(tags = tags, known = knownTags, onChange = { emit() }, onFocus = { tagFieldFocused = it })
+        }
 
         val images = uploadResources.filter { it.mimeType?.startsWith("image/") == true }
         val others = uploadResources.filterNot { it.mimeType?.startsWith("image/") == true }
@@ -221,8 +243,9 @@ fun CofferNoteEditor(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: () -> Unit) {
+private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: () -> Unit, onFocus: (Boolean) -> Unit) {
     var draft by remember { mutableStateOf("") }
+    var adding by remember { mutableStateOf(false) }
     var dismissed by remember { mutableStateOf(false) }
     fun add(tag: String) {
         val t = tag.trim().removePrefix("#")
@@ -230,38 +253,83 @@ private fun TagChips(tags: MutableList<String>, known: List<String>, onChange: (
         draft = ""
     }
     FlowRow(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         tags.forEach { tag ->
             InputChip(
-                selected = false,
+                selected = true,
                 onClick = { tags.remove(tag); onChange() },
-                label = { Text("#$tag") },
-                trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = null) },
+                label = { Text(tag) },
+                leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null, Modifier.size(InputChipDefaults.IconSize)) },
+                trailingIcon = { Icon(Icons.Outlined.Close, contentDescription = null, Modifier.size(InputChipDefaults.IconSize)) },
             )
         }
-        Box {
-            val suggestions = known.filter { it !in tags && draft.isNotEmpty() && it.startsWith(draft.removePrefix("#"), ignoreCase = true) }
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it.replace(" ", ""); dismissed = false },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { add(draft) }),
+        if (!adding) {
+            AssistChip(
+                onClick = { adding = true },
+                label = { Text(stringResource(R.string.coffer_add_tag)) },
+                leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, Modifier.size(AssistChipDefaults.IconSize)) },
             )
-            // Not focusable: the keyboard stays with the field, so a new tag that shares a prefix
-            // with a known one can still be typed; tapping outside hides the list.
-            DropdownMenu(
-                expanded = suggestions.isNotEmpty() && !dismissed,
-                onDismissRequest = { dismissed = true },
-                properties = PopupProperties(focusable = false),
-            ) {
-                suggestions.take(8).forEach { s -> DropdownMenuItem(text = { Text("#$s") }, onClick = { add(s) }) }
+        } else {
+            Box {
+                val focus = remember { FocusRequester() }
+                val suggestions = known.filter { it !in tags && draft.isNotEmpty() && it.startsWith(draft.removePrefix("#"), ignoreCase = true) }
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it.replace(" ", ""); dismissed = false },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.small,
+                    textStyle = MaterialTheme.typography.labelLarge,
+                    leadingIcon = { Icon(Icons.Outlined.Tag, contentDescription = null, Modifier.size(18.dp)) },
+                    modifier = Modifier.width(180.dp).focusRequester(focus).onFocusChanged {
+                        onFocus(it.isFocused)
+                        if (!it.isFocused && draft.isEmpty()) adding = false
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { add(draft) }),
+                )
+                LaunchedEffect(Unit) { focus.requestFocus() }
+                // Not focusable: the keyboard stays with the field, so a new tag that shares a prefix
+                // with a known one can still be typed; tapping outside hides the list.
+                DropdownMenu(
+                    expanded = suggestions.isNotEmpty() && !dismissed,
+                    onDismissRequest = { dismissed = true },
+                    properties = PopupProperties(focusable = false),
+                ) {
+                    suggestions.take(8).forEach { s -> DropdownMenuItem(text = { Text("#$s") }, onClick = { add(s) }) }
+                }
             }
         }
     }
+}
+
+/** The app's Material colours as the page's theme tokens, so the editor wears the same palette. */
+@Composable
+private fun materialTokens(): Map<String, String> {
+    val c = MaterialTheme.colorScheme
+    fun Color.hex() = "#%06X".format(toArgb() and 0xFFFFFF)
+    return mapOf(
+        "--background" to c.surface.hex(),
+        "--foreground" to c.onSurface.hex(),
+        "--card" to c.surfaceContainer.hex(),
+        "--card-foreground" to c.onSurface.hex(),
+        "--popover" to c.surfaceContainerHigh.hex(),
+        "--popover-foreground" to c.onSurface.hex(),
+        "--muted" to c.surfaceContainerHighest.hex(),
+        "--muted-foreground" to c.onSurfaceVariant.hex(),
+        "--border" to c.outlineVariant.hex(),
+        "--input" to c.outline.hex(),
+        "--primary" to c.primary.hex(),
+        "--primary-foreground" to c.onPrimary.hex(),
+        "--secondary" to c.secondaryContainer.hex(),
+        "--secondary-foreground" to c.onSecondaryContainer.hex(),
+        "--accent" to c.secondaryContainer.hex(),
+        "--accent-foreground" to c.onSecondaryContainer.hex(),
+        "--ring" to c.primary.hex(),
+        "--font-sans" to "Roboto, system-ui, sans-serif",
+    )
 }
 
 /** The editor's request proxy for the current account — one per process (`CofferEditorProxies`). */

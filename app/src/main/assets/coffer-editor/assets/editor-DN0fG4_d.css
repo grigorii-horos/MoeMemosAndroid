@@ -603,8 +603,8 @@
     inset-inline: 0;
   }
 
-  .inset-x-4 {
-    inset-inline: calc(var(--spacing) * 4);
+  .inset-x-2 {
+    inset-inline: calc(var(--spacing) * 2);
   }
 
   .inset-y-0 {
@@ -649,10 +649,6 @@
 
   .top-4 {
     top: calc(var(--spacing) * 4);
-  }
-
-  .top-11 {
-    top: calc(var(--spacing) * 11);
   }
 
   .top-\[3px\] {
@@ -1294,6 +1290,11 @@
     height: calc(var(--spacing) * 9);
   }
 
+  .size-9\! {
+    width: calc(var(--spacing) * 9) !important;
+    height: calc(var(--spacing) * 9) !important;
+  }
+
   .size-10 {
     width: calc(var(--spacing) * 10);
     height: calc(var(--spacing) * 10);
@@ -1558,6 +1559,10 @@
 
   .max-h-\[32rem\] {
     max-height: 32rem;
+  }
+
+  .max-h-\[55dvh\] {
+    max-height: 55dvh;
   }
 
   .max-h-\[60dvh\] {
@@ -2828,6 +2833,10 @@
     border-radius: 4px;
   }
 
+  .rounded-\[10px\] {
+    border-radius: 10px;
+  }
+
   .rounded-\[calc\(var\(--radius\)-5px\)\] {
     border-radius: calc(var(--radius) - 5px);
   }
@@ -3103,8 +3112,14 @@
     }
   }
 
-  .border-on-glass {
+  .border-on-glass, .border-on-glass\/10 {
     border-color: var(--on-glass);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-on-glass\/10 {
+      border-color: color-mix(in oklab, var(--on-glass) 10%, transparent);
+    }
   }
 
   .border-primary {
@@ -6857,6 +6872,12 @@
     }
   }
 
+  @media not all and (min-width: 48rem) {
+    .max-md\:hidden {
+      display: none;
+    }
+  }
+
   @media (min-width: 640px) {
     .list\:block {
       display: block;
@@ -6887,10 +6908,6 @@
       padding: 0;
       position: static;
       overflow: visible;
-    }
-
-    .sm\:col-span-1 {
-      grid-column: span 1 / span 1;
     }
 
     .sm\:mx-0 {
@@ -6967,10 +6984,6 @@
 
     .sm\:grid-cols-3 {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .sm\:grid-cols-\[11rem_11rem_1fr\] {
-      grid-template-columns: 11rem 11rem 1fr;
     }
 
     .sm\:grid-cols-\[320px_1fr\] {
@@ -7104,6 +7117,10 @@
       top: 50%;
     }
 
+    .md\:top-18 {
+      top: calc(var(--spacing) * 18);
+    }
+
     .md\:top-\[10dvh\] {
       top: 10dvh;
     }
@@ -7152,6 +7169,10 @@
       max-height: 85dvh;
     }
 
+    .md\:max-h-\[calc\(100\%-5\.5rem\)\] {
+      max-height: calc(100% - 5.5rem);
+    }
+
     .md\:max-h-\[min\(80dvh\,52rem\)\] {
       max-height: min(80dvh, 52rem);
     }
@@ -7166,6 +7187,10 @@
 
     .md\:min-h-64 {
       min-height: calc(var(--spacing) * 64);
+    }
+
+    .md\:w-\[22rem\] {
+      width: 22rem;
     }
 
     .md\:w-\[80vw\] {
@@ -8172,8 +8197,8 @@
     width: auto !important;
   }
 
-  .\[\&_\.leaflet-top\.leaflet-right\]\:top-11 .leaflet-top.leaflet-right {
-    top: calc(var(--spacing) * 11);
+  .\[\&_\.leaflet-bottom\]\:bottom-\[var\(--map-sheet\,0px\)\]\! .leaflet-bottom {
+    bottom: var(--map-sheet, 0px) !important;
   }
 
   .\[\&_\.rounded-md\]\:rounded-\[10px\] .rounded-md {
@@ -8462,12 +8487,6 @@
 
   .\[\&\>\*\]\:rounded-none > * {
     border-radius: 0;
-  }
-
-  @media (min-width: 40rem) {
-    .sm\:\[\&\>\*\]\:flex-none > * {
-      flex: none;
-    }
   }
 
   .\[\&\>\*\+\*\]\:mt-3 > * + * {
@@ -9513,8 +9532,12 @@
   backdrop-filter: blur(12px);
 }
 
-.glass :is([data-slot="input"], [data-slot="number-field"], [data-slot="button"][data-variant="secondary"]) {
+.glass :is([data-slot="input"], [data-slot="number-field"], [data-slot="button"][data-variant="secondary"], [data-slot="button"][data-variant="outline"]) {
   border-color: #0000;
+}
+
+.glass [data-removal] {
+  color: var(--on-glass);
 }
 
 .glass :is([data-slot="input"], [data-slot="number-field"], [data-slot="button"][data-variant="secondary"], [data-slot="button"][data-variant="outline"]) {
@@ -11354,6 +11377,10 @@ body {
   height: .95em;
 }
 
+.md-static li:is([data-type="taskItem"], [data-checked]) > div > p:first-child {
+  margin-top: 0;
+}
+
 .md-editor .tableWrapper, .md-static .table-wrapper {
   max-width: 100%;
   overflow-x: auto;
@@ -12563,4 +12590,39 @@ input[type="checkbox"][data-readonly] {
     transform: translate3d(var(--tw-exit-translate-x, 0),var(--tw-exit-translate-y, 0),0)scale3d(var(--tw-exit-scale, 1),var(--tw-exit-scale, 1),var(--tw-exit-scale, 1))rotate(var(--tw-exit-rotate, 0));
     filter: blur(var(--tw-exit-blur, 0));
   }
+}
+/*
+ * The embedded editor on a phone (spec 2026-10-27 moememos-coffer-editor): the page fills the
+ * app's editing area, the text scrolls, and the kit's toolbar sits UNDER the text — right above
+ * the keyboard, where a phone's formatting bar belongs. The toolbar is the first child of the
+ * editor's column (pinned by editor-api.test.tsx); `order` moves it without touching the kit.
+ */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--background);
+}
+#root,
+.md-editor {
+  height: var(--embed-height, 100%);
+}
+.md-editor > div {
+  gap: 0;
+}
+.md-editor > div > :first-child {
+  order: 2;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--card, var(--background));
+}
+.md-editor > div > :first-child > div {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.md-editor .ProseMirror {
+  padding: 4px 4px 24px;
+  font-size: 17px;
+  line-height: 1.5;
 }
