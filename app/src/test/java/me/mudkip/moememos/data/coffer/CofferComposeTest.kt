@@ -13,9 +13,25 @@ class CofferComposeTest {
     @Test
     fun headingMarksStripped() = assertEquals(NoteParts("Plan", "body", emptyList()), split("## Plan\nbody"))
 
+    // Coffer's markdown has no #tag syntax: a #word in the text is text. Labels live only in the
+    // last line MoeMemos is given — a paragraph of nothing but #labels.
     @Test
-    fun tagsCutAndCollectedInOrder() =
-        assertEquals(NoteParts("T", "buy and", listOf("milk", "bread")), split("# T\nbuy #milk and #bread\n#milk"))
+    fun hashWordsInTheTextStayText() =
+        assertEquals(NoteParts("T", "buy #milk and #bread\n#milk", emptyList()), split("# T\nbuy #milk and #bread\n#milk"))
+
+    @Test
+    fun theLastParagraphOfLabelsIsTheLabels() =
+        assertEquals(NoteParts("T", "buy #milk", listOf("home", "shop")), split("# T\n\nbuy #milk\n\n#home #shop #home"))
+
+    @Test
+    fun aLastParagraphWithAnyOtherWordIsText() =
+        assertEquals(NoteParts("T", "a\n\n#home and more", emptyList()), split("# T\n\na\n\n#home and more"))
+
+    @Test
+    fun aLabelWithASpaceSurvivesTheRoundTrip() {
+        val parts = NoteParts("T", "b", listOf("my label", "x"))
+        assertEquals(parts, split(CofferCompose.join(parts)))
+    }
 
     @Test
     fun tagInCodeStaysText() {
@@ -27,7 +43,7 @@ class CofferComposeTest {
     fun tagInLinkStaysText() = assertEquals(NoteParts("T", "[#a](#b) c", emptyList()), split("# T\n[#a](#b) c"))
 
     @Test
-    fun cyrillicTag() = assertEquals(listOf("молоко"), split("# T\nкупить #молоко").tags)
+    fun cyrillicLabel() = assertEquals(listOf("молоко"), split("# T\n\nкупить\n\n#молоко").tags)
 
     @Test
     fun hashAfterLetterIsNotATag() = assertEquals(emptyList<String>(), split("# T\nC# and a#b").tags)

@@ -67,7 +67,7 @@ class CofferRepositoryTest {
     @Test
     fun createSplitsContent() = runTest {
         val api = FakeApi()
-        repo(api).createMemo("# T\nb #x", MemoVisibility.PRIVATE, emptyList())
+        repo(api).createMemo("# T\nb\n\n#x", MemoVisibility.PRIVATE, emptyList())
         val body = api.bodies.single()
         assertEquals("T", body["title"]!!.jsonPrimitive.content)
         assertEquals("b", body["text"]!!.jsonPrimitive.content)
@@ -173,7 +173,7 @@ class CofferRepositoryTest {
         val memo = (r.listMemos() as ApiResponse.Success).data.single()
         assertEquals(listOf("x"), memo.tags)
         assertEquals(2, api.listed.size) // labels refused, then tags
-        r.updateMemo("5", content = "# T\nb #y")
+        r.updateMemo("5", content = "# T\nb\n\n#y")
         assertEquals(listOf("y"), api.bodies.last()["tags"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 }
