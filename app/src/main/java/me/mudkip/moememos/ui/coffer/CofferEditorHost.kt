@@ -36,6 +36,7 @@ object CofferEditorHost {
     interface Listener {
         fun onReady()
         fun onChange(markdown: String)
+        fun onTitle(value: String)
         fun onShown()
         fun onGone()
     }
@@ -61,6 +62,7 @@ object CofferEditorHost {
             ready = { ready = true; listener?.onReady() },
             change = { md -> listener?.onChange(md) },
             shown = { listener?.onShown() },
+            title = { t -> listener?.onTitle(t) },
         ), onGone = {
             view?.destroy()
             view = null
@@ -151,6 +153,7 @@ class CofferBridge(
     private val ready: () -> Unit,
     private val change: (String) -> Unit,
     private val shown: () -> Unit,
+    private val title: (String) -> Unit,
 ) {
     @JavascriptInterface
     fun onReady() {
@@ -165,5 +168,10 @@ class CofferBridge(
     @JavascriptInterface
     fun onShown() {
         main.post(shown)
+    }
+
+    @JavascriptInterface
+    fun onTitle(value: String) {
+        main.post { title(value) }
     }
 }

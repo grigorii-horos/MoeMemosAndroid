@@ -45,6 +45,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.SideEffect
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
@@ -99,8 +106,9 @@ private const val EDITOR_URL = "$ASSET_ORIGIN/embed/editor.html"
 
 /**
  * A Coffer note's editing screen (spec `../coffer/docs/superpowers/specs/
- * 2026-10-27-moememos-coffer-editor-design.md`): a title field, Coffer's own markdown editor for
- * the text (a WebView over the bundled page), the note's tags as chips, then its attachments.
+ * 2026-10-27-moememos-coffer-editor-design.md`): Coffer's own markdown editor (a WebView over the
+ * bundled page, the title drawn above the text so the two scroll together), then — folded by
+ * default, unfolded from the bottom bar ([CofferDetailsToggle]) — the note's tags and attachments.
  * [content] is the memo text MoeMemos stores (`CofferCompose.join`, files as URLs); every change
  * goes back through [onContentChange] in that same form, so sync is untouched.
  */
@@ -136,6 +144,9 @@ fun CofferNoteEditor(
     var tagFieldFocused by remember { mutableStateOf(false) }
     // While typing in the note the keyboard needs the room; the tags come back when it closes.
     val typing = WindowInsets.isImeVisible && !tagFieldFocused
+    val titlePlaceholder = stringResource(R.string.coffer_note_title)
+    LaunchedEffect(Unit) { CofferNoteUi.expanded = false }
+    SideEffect { CofferNoteUi.count = tags.size + uploadResources.size }
 
     fun emit() {
         val out = CofferCompose.join(NoteParts(title, CofferCompose.bareToUrl(text, files, uploadsBase), tags.toList()))
@@ -148,6 +159,8 @@ fun CofferNoteEditor(
             put("text", text)
             put("lang", Locale.getDefault().language.takeIf { it in setOf("uk", "ru") } ?: "en")
             put("dark", dark)
+            put("title", title)
+            put("titlePlaceholder", titlePlaceholder)
             put("theme", buildJsonObject { theme.forEach { (k, v) -> put(k, v) } })
             if (recordId != null) put("record", buildJsonObject {
                 put("node", CofferNode.NODE)
@@ -170,26 +183,12 @@ fun CofferNoteEditor(
     }
 
     Column(modifier.fillMaxHeight()) {
-        TextField(
-            value = title,
-            onValueChange = { title = it.replace('\n', ' '); emit() },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            placeholder = { Text(stringResource(R.string.coffer_note_title), style = MaterialTheme.typography.headlineSmall) },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.headlineSmall,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-        )
-
         val proxy = rememberCofferEditorProxy()
         val listener = remember {
             object : CofferEditorHost.Listener {
                 override fun onReady() { ready = true; loadIntoEditor() }
                 override fun onChange(markdown: String) { text = markdown; emit() }
+                override fun onTitle(value: String) { title = value; emit() }
                 override fun onShown() { shown = true }
                 // A dead renderer: a fresh WebView is built and attached instead of crashing the app.
                 override fun onGone() { ready = false; generation++ }
@@ -214,9 +213,9 @@ fun CofferNoteEditor(
             }
         }
 
-        if (!typing) {
-            TagChips(tags = tags, known = knownTags, onChange = { emit() }, onFocus = { tagFieldFocused = it })
-        }
+        AnimatedVisibility(visible = CofferNoteUi.expanded && !typing) {
+            Column {
+        TagChips(tags = tags, known = knownTags, onChange = { emit() }, onFocus = { tagFieldFocused = it })
 
         val images = uploadResources.filter { it.mimeType?.startsWith("image/") == true }
         val others = uploadResources.filterNot { it.mimeType?.startsWith("image/") == true }
@@ -237,6 +236,30 @@ fun CofferNoteEditor(
                     Attachment(resource = r, onRemove = { inputViewModel.deleteResource(r.identifier) })
                 }
             }
+        }
+            }
+        }
+    }
+}
+
+/** The note's details (tags, attachments) folded or not — shared by the screen and its bottom-bar toggle. */
+object CofferNoteUi {
+    var expanded by mutableStateOf(false)
+    /** How many tags and attachments the folded section holds — the toggle's badge. */
+    var count by mutableStateOf(0)
+}
+
+/** The bottom-bar button that folds and unfolds the note's tags and attachments. */
+@Composable
+fun CofferDetailsToggle() {
+    IconButton(onClick = { CofferNoteUi.expanded = !CofferNoteUi.expanded }) {
+        BadgedBox(badge = {
+            if (!CofferNoteUi.expanded && CofferNoteUi.count > 0) Badge { Text(CofferNoteUi.count.toString()) }
+        }) {
+            Icon(
+                if (CofferNoteUi.expanded) Icons.Outlined.ExpandMore else Icons.Outlined.ExpandLess,
+                contentDescription = stringResource(R.string.coffer_details),
+            )
         }
     }
 }

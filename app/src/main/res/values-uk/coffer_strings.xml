@@ -2,4 +2,5 @@
 <resources>
     <string name="coffer_note_title">Заголовок</string>
     <string name="coffer_add_tag">Тег</string>
+    <string name="coffer_details">Теги та файли</string>
 </resources>

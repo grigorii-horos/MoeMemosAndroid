@@ -1290,11 +1290,6 @@
     height: calc(var(--spacing) * 9);
   }
 
-  .size-9\! {
-    width: calc(var(--spacing) * 9) !important;
-    height: calc(var(--spacing) * 9) !important;
-  }
-
   .size-10 {
     width: calc(var(--spacing) * 10);
     height: calc(var(--spacing) * 10);
@@ -2668,6 +2663,10 @@
     column-gap: calc(var(--spacing) * 4);
   }
 
+  .gap-x-5 {
+    column-gap: calc(var(--spacing) * 5);
+  }
+
   .gap-x-6 {
     column-gap: calc(var(--spacing) * 6);
   }
@@ -2833,8 +2832,12 @@
     border-radius: 4px;
   }
 
-  .rounded-\[10px\] {
-    border-radius: 10px;
+  .rounded-\[6px\] {
+    border-radius: 6px;
+  }
+
+  .rounded-\[12px\] {
+    border-radius: 12px;
   }
 
   .rounded-\[calc\(var\(--radius\)-5px\)\] {
@@ -3250,17 +3253,7 @@
     }
   }
 
-  .bg-card, .bg-card\/40 {
-    background-color: var(--card);
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bg-card\/40 {
-      background-color: color-mix(in oklab, var(--card) 40%, transparent);
-    }
-  }
-
-  .bg-card\/95 {
+  .bg-card, .bg-card\/95 {
     background-color: var(--card);
   }
 
@@ -3345,6 +3338,16 @@
   @supports (color: color-mix(in lab, red, red)) {
     .bg-on-glass\/10 {
       background-color: color-mix(in oklab, var(--on-glass) 10%, transparent);
+    }
+  }
+
+  .bg-on-glass\/15 {
+    background-color: var(--on-glass);
+  }
+
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-on-glass\/15 {
+      background-color: color-mix(in oklab, var(--on-glass) 15%, transparent);
     }
   }
 
@@ -4302,6 +4305,10 @@
 
   .opacity-70 {
     opacity: .7;
+  }
+
+  .opacity-80 {
+    opacity: .8;
   }
 
   .shadow {
@@ -7117,8 +7124,8 @@
       top: 50%;
     }
 
-    .md\:top-18 {
-      top: calc(var(--spacing) * 18);
+    .md\:top-4 {
+      top: calc(var(--spacing) * 4);
     }
 
     .md\:top-\[10dvh\] {
@@ -7135,6 +7142,10 @@
 
     .md\:left-1\/2 {
       left: 50%;
+    }
+
+    .md\:left-4 {
+      left: calc(var(--spacing) * 4);
     }
 
     .md\:block {
@@ -7169,8 +7180,8 @@
       max-height: 85dvh;
     }
 
-    .md\:max-h-\[calc\(100\%-5\.5rem\)\] {
-      max-height: calc(100% - 5.5rem);
+    .md\:max-h-\[calc\(100\%-2rem\)\] {
+      max-height: calc(100% - 2rem);
     }
 
     .md\:max-h-\[min\(80dvh\,52rem\)\] {
@@ -8201,6 +8212,10 @@
     bottom: var(--map-sheet, 0px) !important;
   }
 
+  .\[\&_\.rounded-md\]\:rounded-\[6px\]\! .rounded-md {
+    border-radius: 6px !important;
+  }
+
   .\[\&_\.rounded-md\]\:rounded-\[10px\] .rounded-md {
     border-radius: 10px;
   }
@@ -9098,6 +9113,7 @@
 :root[data-theme="dark"] {
   --l-background: .175;
   --l-glass: 0;
+  --a-glass: .75;
   --c-background: .018;
   --h-background: 205;
   --l-card: .21;
@@ -9271,6 +9287,7 @@
   :root:not([data-theme]) {
     --l-background: .175;
     --l-glass: 0;
+    --a-glass: .75;
     --c-background: .018;
     --h-background: 205;
     --l-card: .21;
@@ -12592,27 +12609,57 @@ input[type="checkbox"][data-readonly] {
   }
 }
 /*
- * The embedded editor on a phone (spec 2026-10-27 moememos-coffer-editor): the page fills the
- * app's editing area, the text scrolls, and the kit's toolbar sits UNDER the text — right above
- * the keyboard, where a phone's formatting bar belongs. The toolbar is the first child of the
- * editor's column (pinned by editor-api.test.tsx); `order` moves it without touching the kit.
+ * The embedded editor on a phone (spec 2026-10-27 moememos-coffer-editor). The page is ONE scroll:
+ * the title and the text scroll together, and the kit's toolbar sticks to the bottom of the view,
+ * right above the keyboard. The toolbar is the first child of the editor's column (pinned by
+ * editor-api.test.tsx); `order` moves it under the text without touching the kit.
  */
 html,
-body,
-#root {
-  height: 100%;
+body {
   margin: 0;
   background: var(--background);
 }
-#root,
+#root {
+  /* Booted off screen at zero size, the page's percentage heights stay zero: innerHeight it is. */
+  height: var(--embed-height, 100vh);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#root .embed-title {
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font: 400 24px/32px var(--font-sans);
+  /* The app's narrow-screen inputs are `16px !important` (against iOS zoom on focus); a
+     phone's WebView does not zoom, and the title is a heading. */
+  font-size: 24px !important;
+  padding: 16px 16px 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+#root .embed-title::placeholder {
+  color: var(--muted-foreground);
+}
 .md-editor {
-  height: var(--embed-height, 100%);
+  flex: 1 0 auto;
+  min-height: auto;
 }
 .md-editor > div {
   gap: 0;
+  flex: 1 0 auto;
+}
+/* The text no longer scrolls on its own: the page does. */
+.md-editor > div > :last-child {
+  overflow: visible;
+  flex: 1 0 auto;
 }
 .md-editor > div > :first-child {
   order: 2;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--card, var(--background));
@@ -12622,7 +12669,7 @@ body,
   padding-bottom: 0;
 }
 .md-editor .ProseMirror {
-  padding: 4px 4px 24px;
+  padding: 4px 12px 24px;
   font-size: 17px;
   line-height: 1.5;
 }

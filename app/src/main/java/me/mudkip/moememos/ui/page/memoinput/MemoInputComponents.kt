@@ -72,6 +72,7 @@ import me.mudkip.moememos.ui.component.ActionIconButton
 import me.mudkip.moememos.ui.component.Attachment
 import me.mudkip.moememos.ui.component.InputImage
 import me.mudkip.moememos.ui.component.MemoLocationRow
+import me.mudkip.moememos.ui.coffer.CofferDetailsToggle
 import me.mudkip.moememos.viewmodel.MemoInputViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -242,6 +243,8 @@ internal fun MemoInputBottomBar(
                 ActionIconButton(label = stringResource(R.string.attachment), onClick = onPickAttachment) {
                     Icon(Icons.Outlined.Attachment, contentDescription = stringResource(R.string.attachment))
                 }
+
+                if (currentAccount is Account.Coffer) CofferDetailsToggle()
 
                 ActionIconButton(label = stringResource(R.string.take_photo), onClick = onTakePhoto) {
                     Icon(Icons.Outlined.PhotoCamera, contentDescription = stringResource(R.string.take_photo))
