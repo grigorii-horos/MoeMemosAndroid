@@ -10,6 +10,8 @@ over Coffer's own REST API — no Coffer plugin.
   back (`data/coffer/CofferCompose.kt`). A tag written mid-text moves to the end after a save.
 - **Attachments** go to `/api/upload`; images land in the note's `gallery`, other files in `files`.
 - **Delete** moves the note to Coffer's trash.
+- **Tags** are the note's `labels` (`[{"text": …}]`, renamed from `tags` on the server on 2026-10-27);
+  against an older server the app falls back to `tags` by itself.
 - **Pin** is the note's favorite in Coffer (per person). **Visibility**: private or public — a
   note is born either and can later only become public; "protected" is not offered. **Archive**
   and **location** have no Coffer counterpart and are hidden for a Coffer account.

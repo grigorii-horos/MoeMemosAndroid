@@ -11,17 +11,26 @@ import me.mudkip.moememos.data.model.Account
 import me.mudkip.moememos.data.model.MemosAccount
 import me.mudkip.moememos.data.model.MemoVisibility
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 
-private class FakeApi(var notes: List<CofferNote> = emptyList()) : CofferApi {
+private class FakeApi(var notes: List<CofferNote> = emptyList(), val labelsServer: Boolean = true) : CofferApi {
+    val listed = mutableListOf<String>()
     val bodies = mutableListOf<JsonObject>()
     val deleted = mutableListOf<Long>()
     private fun echo(id: Long) = CofferNote(id = id, updatedAt = Instant.EPOCH)
 
-    override suspend fun listNotes(fields: String) = ApiResponse.Success(notes)
+    override suspend fun listNotes(fields: String): ApiResponse<List<CofferNote>> {
+        listed += fields
+        // An old server refuses a field it does not know (400 bad_filter).
+        if (!labelsServer && "labels" in fields.split(',')) {
+            return ApiResponse.Failure.Error(retrofit2.Response.error<Any>(400, "{}".toResponseBody(null)))
+        }
+        return ApiResponse.Success(notes)
+    }
     override suspend fun createNote(body: JsonObject): ApiResponse<CofferNote> { bodies += body; return ApiResponse.Success(echo(9)) }
     override suspend fun updateNote(id: Long, body: JsonObject): ApiResponse<CofferNote> { bodies += body; return ApiResponse.Success(echo(id)) }
     override suspend fun deleteNote(id: Long): ApiResponse<Unit> { deleted += id; return ApiResponse.Success(Unit) }
@@ -62,7 +71,7 @@ class CofferRepositoryTest {
         val body = api.bodies.single()
         assertEquals("T", body["title"]!!.jsonPrimitive.content)
         assertEquals("b", body["text"]!!.jsonPrimitive.content)
-        assertEquals(listOf("x"), body["tags"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(listOf("x"), body["labels"]!!.jsonArray.map { it.jsonObject["text"]!!.jsonPrimitive.content })
     }
 
     @Test
@@ -86,7 +95,7 @@ class CofferRepositoryTest {
     fun updateWithContentOnlyPatchesTextFields() = runTest {
         val api = FakeApi()
         repo(api).updateMemo("5", content = "# T\nb")
-        assertEquals(setOf("title", "text", "tags"), api.bodies.single().keys)
+        assertEquals(setOf("title", "text", "labels"), api.bodies.single().keys)
     }
 
     @Test
@@ -145,5 +154,26 @@ class CofferRepositoryTest {
         val api = FakeApi()
         repo(api).deleteMemo("5")
         assertEquals(listOf(5L), api.deleted)
+    }
+
+    // The server renamed `tags` to `labels` ([{text}] or [{key}] items); the fork must work with
+    // both versions across the deploy.
+    @Test
+    fun labelsAreReadAsTextsOrKeys() = runTest {
+        val api = FakeApi(listOf(CofferNote(5, "T", "b", labels = listOf(CofferLabel(text = "a"), CofferLabel(key = "k")))))
+        val memo = (repo(api).listMemos() as ApiResponse.Success).data.single()
+        assertEquals(listOf("a", "k"), memo.tags)
+        assertEquals("# T\n\nb\n\n#a #k", memo.content)
+    }
+
+    @Test
+    fun anOldServerFallsBackToTagsAndKeepsWritingThem() = runTest {
+        val api = FakeApi(listOf(CofferNote(5, "T", "b", tags = listOf("x"))), labelsServer = false)
+        val r = repo(api)
+        val memo = (r.listMemos() as ApiResponse.Success).data.single()
+        assertEquals(listOf("x"), memo.tags)
+        assertEquals(2, api.listed.size) // labels refused, then tags
+        r.updateMemo("5", content = "# T\nb #y")
+        assertEquals(listOf("y"), api.bodies.last()["tags"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 }

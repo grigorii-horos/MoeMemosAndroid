@@ -33,14 +33,22 @@ object CofferNode {
     const val PRIVATE = "private"
     const val TITLE = "title"
     const val TEXT = "text"
+    /** Before the server's `tags` → `labels` rename (2026-10-27): a list of strings. */
     const val TAGS = "tags"
+    /** After it: `[{"text": …}]` (or `[{"key": …}]` for a list item). */
+    const val LABELS = "labels"
     const val IMAGES = "gallery"
     const val FILES = "files"
-    const val LIST_FIELDS = "$TITLE,$TEXT,$TAGS,$IMAGES,$FILES,created_at,updated_at"
+    const val LIST_FIELDS = "$TITLE,$TEXT,$LABELS,$IMAGES,$FILES,created_at,updated_at"
+    const val LIST_FIELDS_OLD = "$TITLE,$TEXT,$TAGS,$IMAGES,$FILES,created_at,updated_at"
 }
 
 @Serializable
 data class CofferFile(val name: String, val mime: String? = null, val size: Long? = null)
+
+/** One label of a note: free text, or the key of a list item. */
+@Serializable
+data class CofferLabel(val text: String? = null, val key: String? = null)
 
 @Serializable
 data class CofferActivity(val favorite: Boolean = false)
@@ -67,6 +75,7 @@ data class CofferNote(
     /** The caller's own activity on the record; `favorite` is what MoeMemos calls pinned. */
     @SerialName("_activity")
     val activity: CofferActivity? = null,
+    val labels: List<CofferLabel>? = null,
 )
 
 @Serializable

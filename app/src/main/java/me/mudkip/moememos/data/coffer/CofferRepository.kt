@@ -34,6 +34,13 @@ class CofferRepository(
 ) : RemoteRepository() {
     private val host = account.info.host.trimEnd('/')
 
+    /**
+     * Whether the server stores a note's tags as `labels` (after the 2026-10-27 rename) or as the
+     * old `tags`. Learnt from the list (an old server refuses the unknown field); a write before
+     * any list assumes the new server.
+     */
+    private var labels: Boolean? = null
+
     private fun resource(f: CofferFile, date: Instant) = Resource(
         remoteId = f.name,
         date = date,
@@ -44,7 +51,7 @@ class CofferRepository(
 
     private fun memo(n: CofferNote): Memo {
         val date = n.createdAt ?: n.updatedAt ?: Instant.now()
-        val tags = n.tags.orEmpty()
+        val tags = n.labels?.mapNotNull { it.text ?: it.key } ?: n.tags.orEmpty()
         val files = n.gallery.orEmpty() + n.files.orEmpty()
         val content = CofferCompose.join(NoteParts(n.title.orEmpty(), n.text.orEmpty(), tags))
         return Memo(
@@ -80,7 +87,11 @@ class CofferRepository(
         content?.let { CofferCompose.split(if (own == null) it else CofferCompose.urlToBare(it, own)) }?.let { p ->
             put(CofferNode.TITLE, p.title)
             put(CofferNode.TEXT, p.text)
-            put(CofferNode.TAGS, JsonArray(p.tags.map(::JsonPrimitive)))
+            if (labels == false) {
+                put(CofferNode.TAGS, JsonArray(p.tags.map(::JsonPrimitive)))
+            } else {
+                put(CofferNode.LABELS, JsonArray(p.tags.map { t -> buildJsonObject { put("text", t) } }))
+            }
         }
         resourceNames?.let { names ->
             val (images, files) = names.partition { mimeOf(it)?.startsWith("image/") == true }
@@ -91,8 +102,19 @@ class CofferRepository(
 
     private fun files(names: List<String>) = JsonArray(names.map { buildJsonObject { put("name", it) } })
 
-    override suspend fun listMemos(): ApiResponse<List<Memo>> =
-        api.listNotes().mapSuccess { map(::memo) }
+    override suspend fun listMemos(): ApiResponse<List<Memo>> = listNotes().mapSuccess { map(::memo) }
+
+    private suspend fun listNotes(): ApiResponse<List<CofferNote>> {
+        if (labels != false) {
+            val res = api.listNotes(CofferNode.LIST_FIELDS)
+            if (res !is ApiResponse.Failure.Error) {
+                if (res is ApiResponse.Success) labels = true
+                return res
+            }
+        }
+        // An old server answers 400 to a field it does not know: it still calls them `tags`.
+        return api.listNotes(CofferNode.LIST_FIELDS_OLD).also { if (it is ApiResponse.Success) labels = false }
+    }
 
     override suspend fun listArchivedMemos(): ApiResponse<List<Memo>> = ApiResponse.Success(emptyList())
 
@@ -129,7 +151,7 @@ class CofferRepository(
     override suspend fun deleteMemo(remoteId: String): ApiResponse<Unit> = api.deleteNote(remoteId.toLong())
 
     override suspend fun listResources(): ApiResponse<List<Resource>> =
-        api.listNotes().mapSuccess {
+        listNotes().mapSuccess {
             flatMap { n -> (n.gallery.orEmpty() + n.files.orEmpty()).map { resource(it, n.createdAt ?: Instant.now()) } }
         }
 
